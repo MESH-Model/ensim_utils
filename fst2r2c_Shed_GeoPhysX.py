@@ -243,7 +243,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 	# Default attribute type is float, in which case type can be omitted.
 	# Attribute type integer should be explicitly provided and data converted to astype(int).
 
-	# Append the field to the file.
+	# Append fields to the file.
 
 	# Append WATROUTE controls and geophysical attributes.
 	# Attributes are saved to variables as some are used in later calculations.
@@ -296,6 +296,14 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 		GridArea = r2cattribute(AttributeName = 'GridArea', AttributeUnits = 'm**2')
 		GridArea.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'GRDA')
 		r2c.attr.append(GridArea)
+
+		VegLow = r2cattribute(AttributeName = 'VegLow', AttributeUnits = 'fraction')
+		VegLow.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGL')
+		r2c.attr.append(VegLow)
+
+		VegHigh = r2cattribute(AttributeName = 'VegHigh', AttributeUnits = 'fraction')
+		VegHigh.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGH')
+		r2c.attr.append(VegHigh)
 
 		# Important notes:
 
@@ -358,14 +366,67 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 		r2c.attr.append(IntSlope)
 
 		# Fetch all 26 cover types from GemPhysX, which span ip1 1199->1174.
+		# Special covers: glaciers, wetlands, water, impervious.
+		# Separate keywords in case smart filtering is added in a future version of MESH.
 
 		SumClass = np.zeros(np.shape(IntSlope.AttributeData))
 		r2c.meta.ClassCount = 0
 		for ip1 in range(1199, (1174 - 1), -1):
 			a = r2cattribute(
-				AttributeName = 'COV_' + str(ip1),
 				AttributeUnits = 'fraction'
 			)
+			if (ip1 == 1199):
+				a.AttributeName = '\"' + str(ip1) + ' sea water"'
+			elif (ip1 == 1198):
+				a.AttributeName = '\"' + str(ip1) + ' glaciers\"'
+			elif (ip1 == 1197):
+				a.AttributeName = '\"' + str(ip1) + ' inland lake water\"'
+			elif (ip1 == 1196):
+				a.AttributeName = '\"' + str(ip1) + ' evergreen needleleaf trees\"'
+			elif (ip1 == 1195):
+				a.AttributeName = '\"' + str(ip1) + ' evergreen broadleaf trees\"'
+			elif (ip1 == 1194):
+				a.AttributeName = '\"' + str(ip1) + ' deciduous needleleaf trees\"'
+			elif (ip1 == 1193):
+				a.AttributeName = '\"' + str(ip1) + ' deciduous broadleaf trees\"'
+			elif (ip1 == 1192):
+				a.AttributeName = '\"' + str(ip1) + ' tropical broadleaf trees\"'
+			elif (ip1 == 1191):
+				a.AttributeName = '\"' + str(ip1) + ' drought deciduous trees\"'
+			elif (ip1 == 1190):
+				a.AttributeName = '\"' + str(ip1) + ' evergreen broadleaf shrubs\"'
+			elif (ip1 == 1189):
+				a.AttributeName = '\"' + str(ip1) + ' deciduous shrubs\"'
+			elif (ip1 == 1188):
+				a.AttributeName = '\"' + str(ip1) + ' thorn shrubs\"'
+			elif (ip1 == 1187):
+				a.AttributeName = '\"' + str(ip1) + ' short grass and forbs\"'
+			elif (ip1 == 1186):
+				a.AttributeName = '\"' + str(ip1) + ' long grass\"'
+			elif (ip1 == 1185):
+				a.AttributeName = '\"' + str(ip1) + ' crops\"'
+			elif (ip1 == 1184):
+				a.AttributeName = '\"' + str(ip1) + ' rice\"'
+			elif (ip1 == 1183):
+				a.AttributeName = '\"' + str(ip1) + ' sugar\"'
+			elif (ip1 == 1182):
+				a.AttributeName = '\"' + str(ip1) + ' maize\"'
+			elif (ip1 == 1181):
+				a.AttributeName = '\"' + str(ip1) + ' cotton\"'
+			elif (ip1 == 1180):
+				a.AttributeName = '\"' + str(ip1) + ' irrigated crops\"'
+			elif (ip1 == 1179):
+				a.AttributeName = '\"' + str(ip1) + ' urban\"'
+			elif (ip1 == 1178):
+				a.AttributeName = '\"' + str(ip1) + ' tundra\"'
+			elif (ip1 == 1177):
+				a.AttributeName = '\"' + str(ip1) + ' swamp wetlands\"'
+			elif (ip1 == 1176):
+				a.AttributeName = '\"' + str(ip1) + ' desert\"'
+			elif (ip1 == 1175):
+				a.AttributeName = '\"' + str(ip1) + ' mixed wood forest trees\"'
+			elif (ip1 == 1174):
+				a.AttributeName = '\"' + str(ip1) + ' mixed shrubs\"'
 			a.loadattributefromfst(
 				desrgrid = fstmatchgrid,
 				fstfid = fphys,
@@ -377,13 +438,121 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 			r2c.meta.ClassCount += 1
 
 		# Append dummy land cover class for impervious areas (legacy requirement).
-		# The Watflood manual maintains the "impervious" keyword is case-sensitive.
 
-		Impervious = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros(np.shape(IntSlope.AttributeData)))
-		r2c.attr.append(Impervious)
+		a = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros(np.shape(IntSlope.AttributeData)))
+		r2c.attr.append(a)
 		r2c.meta.ClassCount += 1
 
 		# Sanity checks.
+
+	# Write output.
+
+	r2c.save(fpathr2cout)
+
+def r2ccreateparam(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
+
+	# Object to store r2c file.
+	# The 'meta' section is not required for parameter files.
+
+	r2c = r2cfile()
+
+	# Set the grid characteristics from the fst grid.
+
+	r2cgridfromfst(fstmatchgrid, r2c)
+
+	# Important notes on attributes:
+
+	# Every attribute must have a name; if none is provided a generic one will be applied.
+	# Default attribute units is none, in which case units can be omitted.
+	# Default attribute type is float, in which case type can be omitted.
+	# Attribute type integer should be explicitly provided and data converted to astype(int).
+
+	# Append fields to the file.
+
+	if (not fshed is None):
+
+		a = r2cattribute(AttributeName = 'R2N')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'R2N', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'R1N')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'R1N', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'MNDR')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'MNDR', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'WIDEP')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'WIDP', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'AA2')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA2', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'AA3')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA3', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'AA4')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA4', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'PWR')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'PWR', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'FLZ')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'FLZ', fstetiket = 'CONSTANT')
+		r2c.attr.append(a)
+
+	if (not fphys is None):
+
+		a = r2cattribute(AttributeName = 'LNZ0', AttributeUnits = 'ln(m)')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'ZP')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'DDEN', AttributeUnits = 'km km**-2')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'DRND', constm = 1000.0)
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'XSLP', AttributeUnits = 'm m**-1')
+		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'SLOP')
+		r2c.attr.append(a)
+
+		# Fetch soil texture for 7 soil layers, which span ip1 1199->1193.
+		# MESH-SVS presently requires 7 soil layers.
+
+                i = 1
+		for ip1 in range(1199, (1193 - 1), -1):
+			a = r2cattribute(
+				AttributeName = 'SAND ' + str(i),
+				AttributeUnits = '%'
+			)
+			a.loadattributefromfst(
+				desrgrid = fstmatchgrid,
+				fstfid = fphys,
+				fstnomvar = 'J1',
+				fstip1 = ip1
+			)
+			r2c.attr.append(a)
+			i += 1
+
+		i = 1
+		for ip1 in range(1199, (1193 - 1), -1):
+			a = r2cattribute(
+				AttributeName = 'CLAY ' + str(i),
+				AttributeUnits = '%'
+			)
+			a.loadattributefromfst(
+				desrgrid = fstmatchgrid,
+				fstfid = fphys,
+				fstnomvar = 'J2',
+				fstip1 = ip1
+			)
+			r2c.attr.append(a)
+			i += 1
 
 	# Write output.
 
@@ -431,6 +600,11 @@ if (fstmatchgrid is None):
 
 if (R2CSHD_OUTFILE != ''):
 	r2ccreateshed(fstmatchgrid = fstmatchgrid, fpathr2cout = R2CSHD_OUTFILE, fshed = fshed, fphys = fphys)
+
+# Create parameter file.
+
+if (R2CPRM_OUTFILE != ''):
+	r2ccreateparam(fstmatchgrid = fstmatchgrid, fpathr2cout = R2CPRM_OUTFILE, fshed = fshed, fphys = fphys)
 
 # Close fst files.
 
