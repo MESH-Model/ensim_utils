@@ -4,6 +4,7 @@ from os import path
 from time import gmtime, strftime
 import numpy as np
 import rpnpy.librmn.all as rmn
+from ensim_utils import *
 
 # To load rpnpy:
 # . s.ssmuse.dot ENV/py/2.7/rpnpy/2.0.4
@@ -20,211 +21,99 @@ def push_error(m):
 	print(m)
 	exit()
 
-# File names.
+# r2c structures, core fst-related routines imported from ensim_utils.
 
-# Create normal drainage database if all FSTSHED_INFILE, FSTPHYS_INFILE, and R2CSHD_OUTFILE are defined.
-# Create limited drainage database for routing only if all FSTSHED_INFILE and R2CSHD_OUTFILE are defined.
-# Create limited drainage database for land surface scheme only if all FSTPHYS_INFILE and R2CSHD_FILE are defined.
-# Create normal parameter file if all FSTSHED_INFILE, FSTPHYS_INFILE, and R2CPRM_OUTFILE are defined.
-# Create limited parameter file for routing only if all FSTSHED_INFILE and R2CPRM_OUTFILE are defined.
-# Create limited parameter file for land surface scheme only if all FSTPHYS_INFILE and R2CPRM_OUTFILE are defined.
+def r2cfromgemphyvf(fstmatchgrid, fstfid, r2c, PHYSVF_ip1):
 
-FSTSHED_INFILE = 'shed.fst'
-FSTPHYS_INFILE = 'Gem_geophy.fst'
-R2CSHD_OUTFILE = 'test_dd.r2c'
-R2CPRM_OUTFILE = 'test_pm.r2c'
+	# Fetch land covers from GemPhysX.
+	# Special covers: glaciers, wetlands, water, impervious.
+	# Separate keywords in case smart filtering is added in a future version of MESH.
 
-# Stop if neither input file is defined.
+	SumClass = np.zeros((r2c.grid.xCount, r2c.grid.yCount))
+	if (not r2c.meta is None):
+		r2c.meta.ClassCount = 0
+	for ip1 in PHYSVF_ip1:
+		a = r2cattribute(AttributeUnits = 'fraction')
+		if (ip1 == 1199):
+			a.AttributeName = 'sea water'
+		elif (ip1 == 1198):
+			a.AttributeName = 'glaciers'
+		elif (ip1 == 1197):
+			a.AttributeName = 'inland lake water'
+		elif (ip1 == 1196):
+			a.AttributeName = 'evergreen needleleaf trees'
+		elif (ip1 == 1195):
+			a.AttributeName = 'evergreen broadleaf trees'
+		elif (ip1 == 1194):
+			a.AttributeName = 'deciduous needleleaf trees'
+		elif (ip1 == 1193):
+			a.AttributeName = 'deciduous broadleaf trees'
+		elif (ip1 == 1192):
+			a.AttributeName = 'tropical broadleaf trees'
+		elif (ip1 == 1191):
+			a.AttributeName = 'drought deciduous trees'
+		elif (ip1 == 1190):
+			a.AttributeName = 'evergreen broadleaf shrubs'
+		elif (ip1 == 1189):
+			a.AttributeName = 'deciduous shrubs'
+		elif (ip1 == 1188):
+			a.AttributeName = 'thorn shrubs'
+		elif (ip1 == 1187):
+			a.AttributeName = 'short grass and forbs'
+		elif (ip1 == 1186):
+			a.AttributeName = 'long grass'
+		elif (ip1 == 1185):
+			a.AttributeName = 'crops'
+		elif (ip1 == 1184):
+			a.AttributeName = 'rice'
+		elif (ip1 == 1183):
+			a.AttributeName = 'sugar'
+		elif (ip1 == 1182):
+			a.AttributeName = 'maize'
+		elif (ip1 == 1181):
+			a.AttributeName = 'cotton'
+		elif (ip1 == 1180):
+			a.AttributeName = 'irrigated crops'
+		elif (ip1 == 1179):
+			a.AttributeName = 'urban'
+		elif (ip1 == 1178):
+			a.AttributeName = 'tundra'
+		elif (ip1 == 1177):
+			a.AttributeName = 'swamp wetlands'
+		elif (ip1 == 1176):
+			a.AttributeName = 'desert'
+		elif (ip1 == 1175):
+			a.AttributeName = 'mixed wood forest trees'
+		elif (ip1 == 1174):
+			a.AttributeName = 'mixed shrubs'
+		a.AttributeName = ('\"VF %d ' % ip1) + a.AttributeName + '\"'
+		r2cattributefromfst(a, fstmatchgrid, fstfid, fstnomvar = 'VF', fstip1 = ip1)
+		r2c.attr.append(a)
+		SumClass += a.AttributeData
+		if (not r2c.meta is None):
+			r2c.meta.ClassCount += 1
+	if (not np.all(SumClass > 0.0)):
+		push_message('WARNING: Cells exist in the basin where the total fraction of land cover is zero.')
 
-if ((FSTSHED_INFILE == '') or (not path.exists(FSTSHED_INFILE))) and ((FSTPHYS_INFILE == '') or (not path.exists(FSTPHYS_INFILE))):
-	push_error('ERROR: Neither shed nor physics input file is defined. The script cannot continue.')
+def r2cfromgemphysoil(fstmatchgrid, fstfid, r2c, PHYSSOIL_ip1):
 
-# r2c structures.
+	# Fetch soil texture for soil layers.
 
-class r2cmeta(object):
+        i = 1
+	for ip1 in PHYSSOIL_ip1:
+		a = r2cattribute(AttributeName = ('\"SAND %d\"' % i), AttributeUnits = '%')
+		r2cattributefromfst(a, fstmatchgrid, fstfid, fstnomvar = 'J1', fstip1 = ip1)
+		r2c.attr.append(a)
+		i += 1
 
-	def __init__(self):
-		self.SourceFileName = ''
-		self.NominalGridSize_AL = 1.0
-		self.ContourInterval = 1.0
-		self.ImperviousArea = 0.0
-		self.ClassCount = 0
-		self.NumRiverClasses = 0
-		self.ElevConversion = 1.0
-		self.TotalNumOfGrids = 0
-		self.NumGridsInBasin = 0
-		self.DebugGridNo = 0
+	i = 1
+	for ip1 in PHYSSOIL_ip1:
+		a = r2cattribute(AttributeName = ('\"CLAY %d\"' % i), AttributeUnits = '%')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fstfid, fstnomvar = 'J2', fstip1 = ip1)
+		r2c.attr.append(a)
+		i += 1
 
-class r2cgrid(object):
-
-	def __init__(self):
-		self.Projection = 'UNKNOWN'
-		self.Ellipsoid = 'UNKNOWN'
-		self.xOrigin = 0.0
-		self.yOrigin = 0.0
-		self.xCount = 0
-		self.yCount = 0
-		self.xDelta = 0.0
-		self.yDelta = 0.0
-
-class r2cattribute(object):
-
-	def __init__(self, AttributeName = None, AttributeType = None, AttributeUnits = None, AttributeData = None):
-		self.AttributeName = AttributeName
-		self.AttributeType = AttributeType
-		self.AttributeUnits = AttributeUnits
-		self.AttributeData = AttributeData
-
-	def loadattributefromfst(
-		self, desrgrid, fstfid, fstnomvar, fstetiket = ' ', fstip1 = -1,
-		intpopt = rmn.EZ_INTERP_NEAREST,
-		constm = 1.0, constb = 0.0, constrmax = None, constrmin = None):
-
-		# Grab the field.
-		# Returns 'None' if no field is found.
-
-		fstvar = rmn.fstlir(fstfid, nomvar = fstnomvar, etiket = fstetiket, ip1 = fstip1)
-		if (fstvar is None):
-			push_message('Unable to fetch field: %s. Attribute not appended.' % (fstnomvar))
-			return
-		self.AttributeData = fstvar['d']
-
-		# Interpolate is mis-matched grid.
-		# Only check two dimensions.
-		# Coordinates are derived from the desired grid directly.
-
-		newgrid = rmn.readGrid(fstfid, fstvar)
-		if (newgrid['tag1'] != desrgrid['tag1']) or (newgrid['tag2'] != desrgrid['tag2']):
-			desrll = rmn.gdll(desrgrid['id'])
-			rmn.ezsetopt(rmn.EZ_OPT_INTERP_DEGREE, intpopt)
-			self.AttributeData = rmn.gdllsval(newgrid['id'], desrll['lat'], desrll['lon'], fstvar['d'])
-
-		# Apply transforms.
-
-		if (not constrmax is None):
-			self.AttributeData = max(self.AttributeData, constrmax)
-		if (not constrmin is None):
-			self.AttributeData = min(self.AttributeData, constrmin)
-		self.AttributeData = constm*self.AttributeData + constb
-
-class r2cfile(object):
-
-	def __init__(self):
-		self.meta = None
-		self.grid = r2cgrid()
-		self.attr = []
-
-	def save(self, fpathr2cout):
-
-		# Write the header.
-
-		f = open(fpathr2cout, 'w')
-		f.write('########################################\n')
-		f.write(':FileType r2c ASCII EnSim 1.0\n')
-		f.write('#\n')
-		f.write('# DataType 2D Rect Cell\n')
-		f.write('#\n')
-		f.write(':Application fst2r2c_Shed.py\n')
-		f.write(':Version 1.0\n')
-		f.write(':WrittenBy fst2r2c_Shed.py\n')
-		f.write(':CreationDate ' + strftime('%Y-%m-%d %H:%M:%S', gmtime()) + '\n')
-		f.write('#\n')
-		f.write('#---------------------------------------\n')
-		f.write('#\n')
-		if (not self.meta is None):
-			f.write('#\n')
-			f.write(':NominalGridSize_AL ' + str(self.meta.NominalGridSize_AL) + '\n')
-			f.write(':ContourInterval ' + str(self.meta.ContourInterval) + '\n')
-			f.write(':ImperviousArea ' + str(self.meta.ImperviousArea) + '\n')
-			f.write(':ClassCount ' + str(self.meta.ClassCount) + '\n')
-			f.write(':NumRiverClasses ' + str(self.meta.NumRiverClasses) + '\n')
-			f.write(':ElevConversion ' + str(self.meta.ElevConversion) + '\n')
-			f.write(':TotalNumOfGrids ' + str(self.meta.TotalNumOfGrids) + '\n')
-			f.write(':NumGridsInBasin ' + str(self.meta.NumGridsInBasin) + '\n')
-			f.write(':DebugGridNo ' + str(self.meta.DebugGridNo) + '\n')
-		f.write('#\n')
-		if (self.grid.Projection == 'LATLONG'):
-			f.write(':Projection ' + self.grid.Projection + '\n')
-			f.write(':Ellipsoid ' + self.grid.Ellipsoid + '\n')
-		elif (self.grid.Projection == 'ROTLATLONG'):
-			f.write(':Projection ' + self.grid.Projection + '\n')
-			f.write(':CentreLatitude ' + str(self.grid.CentreLatitude) + '\n')
-			f.write(':CentreLongitude ' + str(self.grid.CentreLongitude) + '\n')
-			f.write(':RotationLatitude ' + str(self.grid.RotationLatitude) + '\n')
-			f.write(':RotationLongitude ' + str(self.grid.RotationLongitude) + '\n')
-			f.write(':Ellipsoid ' + self.grid.Ellipsoid + '\n')
-		f.write('#\n')
-		f.write(':xOrigin ' + str(self.grid.xOrigin) + '\n')
-		f.write(':yOrigin ' + str(self.grid.yOrigin) + '\n')
-		f.write('#\n')
-		f.write('#\n')
-		for i, a in enumerate(self.attr):
-			if (not a.AttributeName is None):
-				f.write(':AttributeName ' + str(i + 1) + ' ' + a.AttributeName + '\n')
-			else:
-				f.write(':AttributeName ' + str(i + 1) + ' Attribute' + str(i + 1) + '\n')
-			if (not a.AttributeType is None):
-				f.write(':AttributeType ' + str(i + 1) + ' ' + a.AttributeType + '\n')
-			if (not a.AttributeUnits is None):
-				f.write(':AttributeUnits ' + str(i + 1) + ' ' + a.AttributeUnits + '\n')
-		f.write('#\n')
-		f.write(':xCount ' + str(self.grid.xCount) + '\n')
-		f.write(':yCount ' + str(self.grid.yCount) + '\n')
-		f.write(':xDelta ' + str(self.grid.xDelta) + '\n')
-		f.write(':yDelta ' + str(self.grid.yDelta) + '\n')
-		f.write('#\n')
-		f.write('#\n')
-		f.write(':EndHeader\n')
-
-		# Data.
-
-		for i, a in enumerate(self.attr):
-			if (not a.AttributeName is None):
-				print('Saving ... ' + a.AttributeName)
-			else:
-				print('Saving ... Attribute ' + str(i + 1))
-			np.savetxt(f, np.transpose(a.AttributeData), fmt = '%g')
-
-		# Close file.
-
-		f.close()
-
-def r2cgridfromfst(fstmatchgrid, r2c):
-
-	# Set grid characteristics from the fst grid.
-	# CMC/RPN uses 'Sphere' ellipsoid (historically).
-	# Change lon to use -180->180 (if applicable).
-	# Offset the points by half-delta as r2c files represent points between vertices of the grid.
-
-	if (fstmatchgrid['grref'] == 'L'):
-		r2c.grid.Projection = 'LATLONG'
-		r2c.grid.Ellipsoid = 'SPHERE'
-		r2c.grid.xOrigin = fstmatchgrid['lon0'] - fstmatchgrid['dlon']/2.0
-		if (r2c.grid.xOrigin > 180.0):
-			r2c.grid.xOrigin -= 360.0
-		r2c.grid.yOrigin = fstmatchgrid['lat0'] - fstmatchgrid['dlat']/2.0
-		r2c.grid.xCount = fstmatchgrid['ni']
-		r2c.grid.yCount = fstmatchgrid['nj']
-		r2c.grid.xDelta = fstmatchgrid['dlon']
-		r2c.grid.yDelta = fstmatchgrid['dlat']
-	elif (fstmatchgrid['grref'] == 'E'):
-		r2c.grid.Projection = 'ROTLATLONG'
-		r2c.grid.Ellipsoid = 'SPHERE'
-		r2c.grid.xOrigin = fstmatchgrid['lon0'] - fstmatchgrid['dlon']/2.0
-		r2c.grid.yOrigin = fstmatchgrid['lat0'] - fstmatchgrid['dlat']/2.0
-		r2c.grid.CentreLatitude = fstmatchgrid['xlat1']
-		r2c.grid.CentreLongitude = fstmatchgrid['xlon1']
-		r2c.grid.RotationLatitude = fstmatchgrid['xlat2']
-		r2c.grid.RotationLongitude = fstmatchgrid['xlon2']
-		r2c.grid.xCount = fstmatchgrid['ni']
-		r2c.grid.yCount = fstmatchgrid['nj']
-		r2c.grid.xDelta = fstmatchgrid['dlon']
-		r2c.grid.yDelta = fstmatchgrid['dlat']
-
-	else:
-		push_error('The fst grid type ' + fstmatchgrid['grref'] + ' is not supported. The script cannot continue.')
-
-def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
+def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_MODE = '', PHYSVF_ip1 = []):
 
 	# Object to store r2c file.
 	# The 'meta' section is required for the drainage database but not other r2c files.
@@ -246,64 +135,9 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 	# Append fields to the file.
 
 	# Append WATROUTE controls and geophysical attributes.
-	# Attributes are saved to variables as some are used in later calculations.
+	# Some attributes are saved to variables to be used in sanity checks or in calculating other attributes.
 
 	if (not fshed is None):
-
-		Rank = r2cattribute(AttributeName = 'Rank', AttributeType = 'integer')
-		Rank.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'RANK')
-		Rank.AttributeData = Rank.AttributeData.astype(int)
-		r2c.attr.append(Rank)
-
-		Next = r2cattribute(AttributeName = 'Next', AttributeType = 'integer')
-		Next.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'NEXT')
-		Next.AttributeData = Next.AttributeData.astype(int)
-		r2c.attr.append(Next)
-
-		DA = r2cattribute(AttributeName = 'DA', AttributeUnits = 'km**2')
-		DA.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'DA')
-		r2c.attr.append(DA)
-
-		Bankfull = r2cattribute(AttributeName = 'Bankfull', AttributeUnits = 'm**3')
-		Bankfull.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'BKFL')
-		r2c.attr.append(Bankfull)
-
-		ChnlSlope = r2cattribute(AttributeName = 'ChnlSlope', AttributeUnits = 'm m**-1')
-		ChnlSlope.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'CSLP')
-		r2c.attr.append(ChnlSlope)
-
-		Elev = r2cattribute(AttributeName = 'Elev', AttributeUnits = 'm')
-		Elev.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'ELEV')
-		r2c.attr.append(Elev)
-
-		ChnlLength = r2cattribute(AttributeName = 'ChnlLength', AttributeUnits = 'm')
-		ChnlLength.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'CLEN')
-		r2c.attr.append(ChnlLength)
-
-		IAK = r2cattribute(AttributeName = 'IAK', AttributeType = 'integer', AttributeData = np.ones(np.shape(Rank.AttributeData), dtype=int))
-		r2c.attr.append(IAK)
-
-		Chnl = r2cattribute(AttributeName = 'Chnl', AttributeType = 'integer')
-		Chnl.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'CHNL')
-		Chnl.AttributeData = Chnl.AttributeData.astype(int)
-		r2c.attr.append(Chnl)
-
-		Reach = r2cattribute(AttributeName = 'Reach', AttributeType = 'integer')
-		Reach.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'REAC')
-		Reach.AttributeData = Reach.AttributeData.astype(int)
-		r2c.attr.append(Reach)
-
-		GridArea = r2cattribute(AttributeName = 'GridArea', AttributeUnits = 'm**2')
-		GridArea.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'GRDA')
-		r2c.attr.append(GridArea)
-
-		VegLow = r2cattribute(AttributeName = 'VegLow', AttributeUnits = 'fraction')
-		VegLow.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGL')
-		r2c.attr.append(VegLow)
-
-		VegHigh = r2cattribute(AttributeName = 'VegHigh', AttributeUnits = 'fraction')
-		VegHigh.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGH')
-		r2c.attr.append(VegHigh)
 
 		# Important notes:
 
@@ -316,20 +150,72 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 		#    (if two outlets exist in the basin, the last two RANK in the stride will have NEXT == 0).
 		#    Typically, the number of grids in the basin < the total number of grids (but this is not always the case converting from fst).
 
-		# Sanity checks.
-
-		if (not np.any(GridArea.AttributeData[Next.AttributeData > 0] > 0.0)):
-			push_message('WARNING: Cells exist in the basin where grid area is zero. This condition will nullify results and may trigger divide-by-zero traps in the land surface scheme.')
-		if (not np.any(DA.AttributeData[Next.AttributeData > 0] > 0.0)):
-			push_message('WARNING: Cells exist in the basin where drainage area is zero. This condition will trigger divide-by-zero traps in Watroute.')
-		if (not np.any(ChnlSlope.AttributeData[Next.AttributeData > 0] > 0.0)):
-			push_message('WARNING: Cells exist in the basin where channel slope is zero. This condition will nullify results in Watroute.')
-		if (not np.any(ChnlLength.AttributeData[Next.AttributeData > 0] > 0.0)):
-			push_message('WARNING: Cells exist in the basin where channel length is zero. This condition will nullify results in Watroute.')
-		if (not np.any(Next.AttributeData[Rank.AttributeData > 0] == 0)):
-			push_message('WARNING: No outlets exist in the basin. Outlets are ranked cells where Next is zero. This condition is undesirable, but will not crash Watroute.')
+		Rank = r2cattribute(AttributeName = 'Rank', AttributeType = 'integer')
+		r2cattributefromfst(Rank, fstmatchgrid, fstfid = fshed, fstnomvar = 'RANK')
+		Rank.AttributeData = Rank.AttributeData.astype(int)
+		r2c.attr.append(Rank)
 		if (not np.count_nonzero(np.unique(Rank.AttributeData)) == np.amax(Rank.AttributeData)):
 			push_message('WARNING: The succession of ranked cells is not continuous. This condition will not crash Watroute, but may result in lost water.')
+
+		Next = r2cattribute(AttributeName = 'Next', AttributeType = 'integer')
+		r2cattributefromfst(Next, fstmatchgrid, fstfid = fshed, fstnomvar = 'NEXT')
+		Next.AttributeData = Next.AttributeData.astype(int)
+		r2c.attr.append(Next)
+		if (not np.any(Next.AttributeData[Rank.AttributeData > 0] == 0)):
+			push_message('WARNING: No outlets exist in the basin. Outlets are cells with Rank where Next is zero. This condition is undesirable, but will not crash Watroute.')
+
+		a = r2cattribute(AttributeName = 'DA', AttributeUnits = 'km**2')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'DA')
+		r2c.attr.append(a)
+		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where drainage area is zero. This condition will trigger divide-by-zero traps in Watroute.')
+
+		a = r2cattribute(AttributeName = 'Bankfull', AttributeUnits = 'm**3')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'BKFL')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'ChnlSlope', AttributeUnits = 'm m**-1')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'CSLP')
+		r2c.attr.append(a)
+		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where channel slope is zero. This condition may cause undesirable results in Watroute.')
+
+		Elev = r2cattribute(AttributeName = 'Elev', AttributeUnits = 'm')
+		r2cattributefromfst(Elev, fstmatchgrid, fstfid = fshed, fstnomvar = 'ELEV')
+		r2c.attr.append(Elev)
+
+		a = r2cattribute(AttributeName = 'ChnlLength', AttributeUnits = 'm')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'CLEN')
+		r2c.attr.append(a)
+		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where channel length is zero. This condition may cause undesirable results in Watroute.')
+
+		IAK = r2cattribute(AttributeName = 'IAK', AttributeType = 'integer', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount), dtype=int))
+		r2c.attr.append(IAK)
+
+		a = r2cattribute(AttributeName = 'Chnl', AttributeType = 'integer')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'CHNL')
+		a.AttributeData = a.AttributeData.astype(int)
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'Reach', AttributeType = 'integer')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'REAC')
+		a.AttributeData = a.AttributeData.astype(int)
+		r2c.attr.append(a)
+
+		GridArea = r2cattribute(AttributeName = 'GridArea', AttributeUnits = 'm**2')
+		r2cattributefromfst(GridArea, fstmatchgrid, fstfid = fshed, fstnomvar = 'GRDA')
+		r2c.attr.append(GridArea)
+		if (not np.any(GridArea.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where grid area is zero. This condition will nullify results and may trigger divide-by-zero traps in the land surface scheme.')
+
+		a = r2cattribute(AttributeName = 'VegLow', AttributeUnits = 'fraction')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGL')
+		r2c.attr.append(a)
+
+		a = r2cattribute(AttributeName = 'VegHigh', AttributeUnits = 'fraction')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGH')
+		r2c.attr.append(a)
 
 		# Update meta-information.
 
@@ -351,105 +237,50 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 
 		lalo = rmn.gdll(fstmatchgrid['id'])
 
-		LA = r2cattribute(AttributeName = 'Latitude', AttributeUnits = 'degrees', AttributeData = lalo['lat'])
-		r2c.attr.append(LA)
+		a = r2cattribute(AttributeName = 'Latitude', AttributeUnits = 'degrees', AttributeData = lalo['lat'])
+		r2c.attr.append(a)
 
-		LO = r2cattribute(AttributeName = 'Longitude', AttributeUnits = 'degrees', AttributeData = lalo['lon'])
-		r2c.attr.append(LO)
+		a = r2cattribute(AttributeName = 'Longitude', AttributeUnits = 'degrees', AttributeData = lalo['lon'])
+		r2c.attr.append(a)
 
 	# Append land cover attributes.
 
 	if (not fphys is None):
 
-		IntSlope = r2cattribute(AttributeName = 'IntSlope', AttributeUnits = 'm m**-1')
-		IntSlope.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'SLOP')
-		r2c.attr.append(IntSlope)
+		a = r2cattribute(AttributeName = 'IntSlope', AttributeUnits = 'm m**-1')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fphys, fstnomvar = 'SLOP')
+		r2c.attr.append(a)
 
-		# Fetch all 26 cover types from GemPhysX, which span ip1 1199->1174.
-		# Special covers: glaciers, wetlands, water, impervious.
-		# Separate keywords in case smart filtering is added in a future version of MESH.
+		# PHYSVF_MODE = 'gru'
 
-		SumClass = np.zeros(np.shape(IntSlope.AttributeData))
-		r2c.meta.ClassCount = 0
-		for ip1 in range(1199, (1174 - 1), -1):
-			a = r2cattribute(
-				AttributeUnits = 'fraction'
-			)
-			if (ip1 == 1199):
-				a.AttributeName = '\"' + str(ip1) + ' sea water"'
-			elif (ip1 == 1198):
-				a.AttributeName = '\"' + str(ip1) + ' glaciers\"'
-			elif (ip1 == 1197):
-				a.AttributeName = '\"' + str(ip1) + ' inland lake water\"'
-			elif (ip1 == 1196):
-				a.AttributeName = '\"' + str(ip1) + ' evergreen needleleaf trees\"'
-			elif (ip1 == 1195):
-				a.AttributeName = '\"' + str(ip1) + ' evergreen broadleaf trees\"'
-			elif (ip1 == 1194):
-				a.AttributeName = '\"' + str(ip1) + ' deciduous needleleaf trees\"'
-			elif (ip1 == 1193):
-				a.AttributeName = '\"' + str(ip1) + ' deciduous broadleaf trees\"'
-			elif (ip1 == 1192):
-				a.AttributeName = '\"' + str(ip1) + ' tropical broadleaf trees\"'
-			elif (ip1 == 1191):
-				a.AttributeName = '\"' + str(ip1) + ' drought deciduous trees\"'
-			elif (ip1 == 1190):
-				a.AttributeName = '\"' + str(ip1) + ' evergreen broadleaf shrubs\"'
-			elif (ip1 == 1189):
-				a.AttributeName = '\"' + str(ip1) + ' deciduous shrubs\"'
-			elif (ip1 == 1188):
-				a.AttributeName = '\"' + str(ip1) + ' thorn shrubs\"'
-			elif (ip1 == 1187):
-				a.AttributeName = '\"' + str(ip1) + ' short grass and forbs\"'
-			elif (ip1 == 1186):
-				a.AttributeName = '\"' + str(ip1) + ' long grass\"'
-			elif (ip1 == 1185):
-				a.AttributeName = '\"' + str(ip1) + ' crops\"'
-			elif (ip1 == 1184):
-				a.AttributeName = '\"' + str(ip1) + ' rice\"'
-			elif (ip1 == 1183):
-				a.AttributeName = '\"' + str(ip1) + ' sugar\"'
-			elif (ip1 == 1182):
-				a.AttributeName = '\"' + str(ip1) + ' maize\"'
-			elif (ip1 == 1181):
-				a.AttributeName = '\"' + str(ip1) + ' cotton\"'
-			elif (ip1 == 1180):
-				a.AttributeName = '\"' + str(ip1) + ' irrigated crops\"'
-			elif (ip1 == 1179):
-				a.AttributeName = '\"' + str(ip1) + ' urban\"'
-			elif (ip1 == 1178):
-				a.AttributeName = '\"' + str(ip1) + ' tundra\"'
-			elif (ip1 == 1177):
-				a.AttributeName = '\"' + str(ip1) + ' swamp wetlands\"'
-			elif (ip1 == 1176):
-				a.AttributeName = '\"' + str(ip1) + ' desert\"'
-			elif (ip1 == 1175):
-				a.AttributeName = '\"' + str(ip1) + ' mixed wood forest trees\"'
-			elif (ip1 == 1174):
-				a.AttributeName = '\"' + str(ip1) + ' mixed shrubs\"'
-			a.loadattributefromfst(
-				desrgrid = fstmatchgrid,
-				fstfid = fphys,
-				fstnomvar = 'VF',
-				fstip1 = ip1
-			)
+		if (PHYSVF_MODE == 'gru'):
+			r2cfromgemphyvf(fstmatchgrid, fphys, r2c, PHYSVF_ip1)
+
+		# PHYSVF_MODE = 'frac'
+
+		elif (PHYSVF_MODE == 'frac'):
+			a = r2cattribute(AttributeName = '\"land cover\"', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
 			r2c.attr.append(a)
-			SumClass += a.AttributeData
 			r2c.meta.ClassCount += 1
+			push_message('REMARK: PHYSVF_MODE frac is active. GeoPhysX land cover will be appended to the parameter file.')
+
+		# PHYSVF_MODE (unknown)
+
+		else:
+			push_message('WARNING: GeoPhysX file is active but no land covers exist or PHYSVF_MODE is not known or ip1 levels have not been defined. This may cause undesirable results when running the model.')
 
 		# Append dummy land cover class for impervious areas (legacy requirement).
 
-		a = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros(np.shape(IntSlope.AttributeData)))
+		a = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount)))
 		r2c.attr.append(a)
 		r2c.meta.ClassCount += 1
 
-		# Sanity checks.
-
 	# Write output.
 
-	r2c.save(fpathr2cout)
+	r2cfilecreateheader(r2c, fpathr2cout)
+	r2cfileappendattributes(r2c, fpathr2cout)
 
-def r2ccreateparam(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
+def r2ccreateparam(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_MODE = '', PHYSVF_ip1 = [], PHYSSOIL_ip1 = []):
 
 	# Object to store r2c file.
 	# The 'meta' section is not required for parameter files.
@@ -471,151 +302,171 @@ def r2ccreateparam(fstmatchgrid, fpathr2cout, fshed = None, fphys = None):
 
 	if (not fshed is None):
 
+		# Next is used in sanity checks not saved to the parameter file.
+
+		Next = r2cattribute()
+		r2cattributefromfst(Next, fstmatchgrid, fstfid = fshed, fstnomvar = 'NEXT')
+
+		# Watroute channel routing parameters.
+
 		a = r2cattribute(AttributeName = 'R2N')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'R2N', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'R2N', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
+		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where R2N is not assigned. This condition may cause undesirable results in Watroute.')
 
 		a = r2cattribute(AttributeName = 'R1N')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'R1N', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'R1N', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
+		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
+			push_message('WARNING: Cells exist in the basin where R1N is not assigned. This condition may cause undesirable results in Watroute.')
 
 		a = r2cattribute(AttributeName = 'MNDR')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'MNDR', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'MNDR', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 		a = r2cattribute(AttributeName = 'WIDEP')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'WIDP', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'WIDP', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 		a = r2cattribute(AttributeName = 'AA2')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA2', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'AA2', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 		a = r2cattribute(AttributeName = 'AA3')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA3', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'AA3', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 		a = r2cattribute(AttributeName = 'AA4')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'AA4', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'AA4', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
+		# Baseflow parameters.
+
 		a = r2cattribute(AttributeName = 'PWR')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'PWR', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'PWR', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 		a = r2cattribute(AttributeName = 'FLZ')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fshed, fstnomvar = 'FLZ', fstetiket = 'CONSTANT')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'FLZ', fstetiket = 'CONSTANT')
 		r2c.attr.append(a)
 
 	if (not fphys is None):
 
+		# PHYSVF_MODE = 'frac'
+
+		if (PHYSVF_MODE == 'frac'):
+			r2cfromgemphyvf(fstmatchgrid, fphys, r2c, PHYSVF_ip1)
+
+		# Canopy parameters.
+
 		a = r2cattribute(AttributeName = 'LNZ0', AttributeUnits = 'ln(m)')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'ZP')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fphys, fstnomvar = 'ZP')
 		r2c.attr.append(a)
+
+		# Interflow parameters.
 
 		a = r2cattribute(AttributeName = 'DDEN', AttributeUnits = 'km km**-2')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'DRND', constm = 1000.0)
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fphys, fstnomvar = 'DRND', constmul = 1000.0)
 		r2c.attr.append(a)
+		if (not np.all(a > 0.0)):
+			push_message('WARNING: Cells exist in the basin where drainage density is zero. This condition may trigger bad math traps in WATROF/WATDRN.')
 
 		a = r2cattribute(AttributeName = 'XSLP', AttributeUnits = 'm m**-1')
-		a.loadattributefromfst(desrgrid = fstmatchgrid, fstfid = fphys, fstnomvar = 'SLOP')
+		r2cattributefromfst(a, fstmatchgrid, fstfid = fphys, fstnomvar = 'SLOP')
 		r2c.attr.append(a)
+		if (not np.all(a > 0.0)):
+			push_message('WARNING: Cells exist in the basin where soil slope is zero. This condition may trigger bad math traps in WATROF/WATDRN.')
 
-		# Fetch soil texture for 7 soil layers, which span ip1 1199->1193.
-		# MESH-SVS presently requires 7 soil layers.
+		# Fetch soil texture for soil layers.
 
-                i = 1
-		for ip1 in range(1199, (1193 - 1), -1):
-			a = r2cattribute(
-				AttributeName = 'SAND ' + str(i),
-				AttributeUnits = '%'
-			)
-			a.loadattributefromfst(
-				desrgrid = fstmatchgrid,
-				fstfid = fphys,
-				fstnomvar = 'J1',
-				fstip1 = ip1
-			)
-			r2c.attr.append(a)
-			i += 1
-
-		i = 1
-		for ip1 in range(1199, (1193 - 1), -1):
-			a = r2cattribute(
-				AttributeName = 'CLAY ' + str(i),
-				AttributeUnits = '%'
-			)
-			a.loadattributefromfst(
-				desrgrid = fstmatchgrid,
-				fstfid = fphys,
-				fstnomvar = 'J2',
-				fstip1 = ip1
-			)
-			r2c.attr.append(a)
-			i += 1
+		r2cfromgemphysoil(fstmatchgrid, fphys, r2c, PHYSSOIL_ip1)
 
 	# Write output.
 
-	r2c.save(fpathr2cout)
+	r2cfilecreateheader(r2c, fpathr2cout)
+	r2cfileappendattributes(r2c, fpathr2cout)
 
-# Open fst files.
+def r2cfromfst_Shed_GeoPhysX(
 
-if (path.exists(FSTSHED_INFILE)):
-	fshed = rmn.fstopenall(FSTSHED_INFILE)
-	rec = rmn.fstlir(fshed, etiket = 'GRID')
-	if (rec is None):
-		push_error('Records do not exist in ' + FSTSHED_INFILE + ' of etiket GRID. The script cannot continue.')
-	fshedgrid = rmn.readGrid(fshed, rec)
-	if (not 'dlat' in fshedgrid) or (not 'dlon' in fshedgrid):
-		push_error('The grid of ' + FSTSHED_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
-else:
-	fshed = None
-if (path.exists(FSTPHYS_INFILE)):
-	fphys = rmn.fstopenall(FSTPHYS_INFILE)
-	rec = rmn.fstlir(fphys, etiket = 'GENPHYSX')
-	if (rec is None):
-		push_error('Records do not exist in ' + FSTPHYS_INFILE + ' of etiket GENPHYSX. The script cannot continue.')
-	fphysgrid = rmn.readGrid(fphys, rec)
-	if (not 'dlat' in fphysgrid) or (not 'dlon' in fphysgrid):
-		push_error('The grid of ' + FSTPHYS_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
-else:
-	fphys = None
+	# File names.
 
-# Define the grid project.
-# Use the grid with the smallest delta.
+	FSTSHED_INFILE = '',
+	FSTPHYS_INFILE = '',
+	R2CSHD_OUTFILE = '',
+	R2CPRM_OUTFILE = '',
 
-fstmatchgrid = None
-if (not fshed is None) and (fphys is None):
-	fstmatchgrid = fshedgrid
-elif (fshed is None) and (not fphys is None):
-	fstmatchgrid = fphysgrid
-elif (fshedgrid['dlat'] <= fphysgrid['dlat']) or (fshedgrid['dlon'] <= fphysgrid['dlon']):
-	fstmatchgrid = fshedgrid
-else:
-	fstmatchgrid = fphysgrid
-if (fstmatchgrid is None):
-	push_error('No grid is defined. The script cannot continue.')
+	# Options.
 
-# Create drainage database.
+	PHYSVF_MODE = '',
+	PHYSVF_ip1 = [],
+	PHYSSOIL_ip1 = []
 
-if (R2CSHD_OUTFILE != ''):
-	r2ccreateshed(fstmatchgrid = fstmatchgrid, fpathr2cout = R2CSHD_OUTFILE, fshed = fshed, fphys = fphys)
+	):
 
-# Create parameter file.
+	# Stop if neither input file is defined.
 
-if (R2CPRM_OUTFILE != ''):
-	r2ccreateparam(fstmatchgrid = fstmatchgrid, fpathr2cout = R2CPRM_OUTFILE, fshed = fshed, fphys = fphys)
+	if ((FSTSHED_INFILE == '') or (not path.exists(FSTSHED_INFILE))) and ((FSTPHYS_INFILE == '') or (not path.exists(FSTPHYS_INFILE))):
+		push_error('ERROR: Neither shed nor physics input file is defined. The script cannot continue.')
 
-# Close fst files.
 
-if (not fshed is None):
-	rmn.fstcloseall(fshed)
-if (not fphys is None):
-	rmn.fstcloseall(fphys)
+	# Open fst files.
 
-# Recap messages.
+	if (path.exists(FSTSHED_INFILE)):
+		fshed = rmn.fstopenall(FSTSHED_INFILE)
+		rec = rmn.fstlir(fshed, etiket = 'GRID')
+		if (rec is None):
+			push_error('Records do not exist in ' + FSTSHED_INFILE + ' of etiket GRID. The script cannot continue.')
+		fshedgrid = rmn.readGrid(fshed, rec)
+		if (not 'dlat' in fshedgrid) or (not 'dlon' in fshedgrid):
+			push_error('The grid of ' + FSTSHED_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
+	else:
+		fshed = None
+	if (path.exists(FSTPHYS_INFILE)):
+		fphys = rmn.fstopenall(FSTPHYS_INFILE)
+		rec = rmn.fstlir(fphys, etiket = 'GENPHYSX')
+		if (rec is None):
+			push_error('Records do not exist in ' + FSTPHYS_INFILE + ' of etiket GENPHYSX. The script cannot continue.')
+		fphysgrid = rmn.readGrid(fphys, rec)
+		if (not 'dlat' in fphysgrid) or (not 'dlon' in fphysgrid):
+			push_error('The grid of ' + FSTPHYS_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
+	else:
+		fphys = None
 
-print('Recapping all messages ...')
-for m in messages:
-	print(m)
+	# Define the grid project.
+	# Use the grid with the smallest delta.
 
+	fstmatchgrid = None
+	if (not fshed is None) and (fphys is None):
+		fstmatchgrid = fshedgrid
+	elif (fshed is None) and (not fphys is None):
+		fstmatchgrid = fphysgrid
+	elif (fshedgrid['dlat'] <= fphysgrid['dlat']) or (fshedgrid['dlon'] <= fphysgrid['dlon']):
+		fstmatchgrid = fshedgrid
+	else:
+		fstmatchgrid = fphysgrid
+	if (fstmatchgrid is None):
+		push_error('No grid is defined. The script cannot continue.')
+
+	# Create drainage database.
+
+	if (R2CSHD_OUTFILE != ''):
+		r2ccreateshed(fstmatchgrid, fpathr2cout = R2CSHD_OUTFILE, fshed = fshed, fphys = fphys, PHYSVF_MODE = PHYSVF_MODE, PHYSVF_ip1 = PHYSVF_ip1)
+
+	# Create parameter file.
+
+	if (R2CPRM_OUTFILE != ''):
+		r2ccreateparam(fstmatchgrid, fpathr2cout = R2CPRM_OUTFILE, fshed = fshed, fphys = fphys, PHYSVF_MODE = PHYSVF_MODE, PHYSVF_ip1 = PHYSVF_ip1, PHYSSOIL_ip1 = PHYSSOIL_ip1)
+
+	# Close fst files.
+
+	if (not fshed is None):
+		rmn.fstcloseall(fshed)
+	if (not fphys is None):
+		rmn.fstcloseall(fphys)
+
+	# Recap messages.
+
+	print('Recapping all messages ...')
+	for m in messages:
+		print(m)
