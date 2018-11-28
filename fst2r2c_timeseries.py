@@ -131,6 +131,7 @@ def r2ctimeseriesfromfst(
 	PROCESS_FSTCONVFLD = [],
 	START_TIME = datetime(year = 2010, month = 1, day = 1, hour = 12, tzinfo = tz.tzutc()),
 	STOP_BEFORE_TIME = datetime(year = 2015, month = 1, day = 1, hour = 12, tzinfo = tz.tzutc()),
+	I_COUNTER = 1,
 	LOCAL_TIME_ZONE = tz.tzutc()
 	):
 
@@ -194,7 +195,6 @@ def r2ctimeseriesfromfst(
 
 	# Iterate time loop.
 
-	I_COUNTER = 1
 	while FST_CURRENT_TIME < FST_STOP_BEFORE_TIME:
 
                 # Open file.
