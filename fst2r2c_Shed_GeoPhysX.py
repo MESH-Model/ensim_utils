@@ -414,9 +414,9 @@ def r2cfromfst_Shed_GeoPhysX(
 
 	if (path.exists(FSTSHED_INFILE)):
 		fshed = rmn.fstopenall(FSTSHED_INFILE)
-		rec = rmn.fstlir(fshed, etiket = 'GRID')
+		rec = rmn.fstlir(fshed, etiket = 'CONSTANT')
 		if (rec is None):
-			push_error('Records do not exist in ' + FSTSHED_INFILE + ' of etiket GRID. The script cannot continue.')
+			push_error('Records do not exist in ' + FSTSHED_INFILE + ' of etiket CONSTANT. The script cannot continue.')
 		fshedgrid = rmn.readGrid(fshed, rec)
 		if (not 'dlat' in fshedgrid) or (not 'dlon' in fshedgrid):
 			push_error('The grid of ' + FSTSHED_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
