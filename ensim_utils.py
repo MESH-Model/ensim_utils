@@ -49,11 +49,26 @@ class r2cfile(object):
 		self.attr = []
 
 class r2cconversionfieldfromfst(object):
-        def __init__(self, fpathr2cout, framefreq, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
+        def __init__(self, fpathr2cout, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
                 self.r2c = r2cfile()
 		self.r2c.attr.append(r2cattribute(AttributeName = AttributeName, AttributeType = AttributeType, AttributeUnits = AttributeUnits))
                 self.fpathr2cout = fpathr2cout
-		self.framefreq = framefreq
+                self.fstnomvar = fstnomvar
+                self.fstetiket = fstetiket
+                self.fstip1 = fstip1
+                self.intpopt = intpopt
+                self.constmul = constmul
+                self.constadd = constadd
+                self.constrmax = constrmax
+                self.constrmin = constrmin
+
+class conversionfieldfromfst(object):
+        def __init__(self, fname, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
+                self.fid = None
+                self.fname = fname
+		self.AttributeName = AttributeName
+		self.AttributeType = AttributeType
+		self.AttributeUnits = AttributeUnits
                 self.fstnomvar = fstnomvar
                 self.fstetiket = fstetiket
                 self.fstip1 = fstip1
@@ -251,20 +266,17 @@ def fstgridfromr2c(r2c):
 		print('ERROR: The fst grid type ' + r2c.grid.Projection + ' is not supported. The script cannot continue.')
 		exit()
 
-def tb0fromfst(
-	tb0, fstfid, fstnomvar, fstetiket = ' ', fstip1 = -1, fstip2 = -1, fstip3 = -1,
+def latlonvalfromfst(
+	lat, lon, fstfid, fstnomvar, fstetiket = ' ', fstip1 = -1, fstip2 = -1, fstip3 = -1,
 	intpopt = rmn.EZ_INTERP_NEAREST,
-	constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf'), accfield = False):
+	constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
 
 	# Grab the field.
 	# Returns 'None' if no field is found.
 	# Use 'istat' to control return from special cases.
 
 	istat = 0
-	if (accfield):
-		field = np.zeros((r2c.grid.xCount, r2c.grid.yCount))
-	else:
-		field = None
+	field = None
 	fstvargrid = None
 
 	# Set interpolation method.
@@ -286,9 +298,9 @@ def tb0fromfst(
 			if (fstnomvar.lower() == 'uu' or fstnomvar.lower() == 'vv'):
 				uuvv = rmn.gdxyvval(fstvargrid, xy['x'], xy['y'], uu['d'], vv['d'])
 				if (fstnomvar.lower() == 'uu'):
-					field == uuvv[0]
+					field = uuvv[0]
 				else:
-					field == uuvv[1]
+					field = uuvv[1]
 			else:
 				from gdxywdval import gdxywdval
 				spdwd = gdxywdval(fstvargrid, xy['x'], xy['y'], uu['d'], vv['d'])
@@ -310,7 +322,7 @@ def tb0fromfst(
 
 	# Check status.
 
-	if (istat != 0):
+	if (istat != 0 or field is None):
 		print('ERROR: Unable to fetch field: %s. Attribute not appended. The script cannot continue.' % fstnomvar)
 		exit()
 
@@ -318,8 +330,6 @@ def tb0fromfst(
 
 	field = constmul*field + constadd
 	field = np.clip(field, constrmin, constrmax)
-	if (accfield):
-		return field
 	return field
 
 def r2cattributefromfst(
@@ -366,6 +376,7 @@ def r2cattributefromfst(
 					field = spdwd[0]
 				else:
 					field = spdwd[1]
+			rmn.gdrls(fstvargrid)
 
 	# Normal scalar interpolation.
 
@@ -377,6 +388,7 @@ def r2cattributefromfst(
 			fstvargrid = rmn.readGrid(fstfid, fstvar)
 			rmn.ezdefset(fstmatchgrid, fstvargrid)
 			field = rmn.ezsint(fstmatchgrid, fstvargrid, fstvar['d'])
+			rmn.gdrls(fstvargrid)
 
 	# Check status.
 
