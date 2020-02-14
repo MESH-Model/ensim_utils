@@ -98,9 +98,9 @@ def r2cfromfst_initial_values(
 
 	if (path.exists(FST_INFILE)):
 		fst = rmn.fstopenall(FST_INFILE)
-		rec = rmn.fstlir(fst, etiket = 'WATR')
+		rec = rmn.fstlir(fst, etiket = 'WATROUTE')
 		if (rec is None):
-			push_error('Records do not exist in ' + FST_INFILE + ' of etiket WATR. The script cannot continue.')
+			push_error('Records do not exist in ' + FST_INFILE + ' of etiket WATROUTE. The script cannot continue.')
 		fstgrid = rmn.readGrid(fst, rec)
 		if (not 'dlat' in fstgrid) or (not 'dlon' in fstgrid):
 			push_error('The grid of ' + FST_INFILE + ' must contain the dlat and dlon fields. The script cannot continue.')
