@@ -26,13 +26,14 @@ def utctimetofstfname_rdrs(utctime):
 
         # 00:00->23:00
 
-        filetime = utctime + dt.relativedelta(hours = +1)
+        filetime = utctime
         filefcst = 12
         fstsrcpath = PATH_ARMNMSH + ('/%04d%02d%02d%02d_forcing' % (filetime.year, filetime.month, filetime.day, filefcst))
 
         # Return file path and adjust ip2.
+        # 01:00->24:00
 
-        return { 'path': fstsrcpath, 'ip2': filetime.hour }
+        return { 'path': fstsrcpath, 'ip2': (filetime.hour + 1) }
 
 def utctimetofstfname_rdps(utctime, ip2 = None):
 
@@ -320,7 +321,7 @@ def r2ctimeseriesfromfst(
 		# Add DST offset to print only standard time to file (to avoid irregular time-stamps).
 
 		FRIENDLY_TIME = FST_CURRENT_TIME.replace(tzinfo = None) + UTC_STD_OFFSET
-        	print('%s %s' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path']))
+        	print('%s %s %s %03d' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path'], 'ip2', fstsrc['ip2']))
 		for i, c in enumerate(PROCESS_FSTCONVFLD):
 			r2cattributefromfst(c.r2c.attr[0], fstmatchgrid, fstfid, fstnomvar = c.fstnomvar.upper().replace('_DEACC', ''), fstetiket = c.fstetiket, fstip1 = c.fstip1, fstip2 = fstsrc['ip2'], intpopt = c.intpopt, constmul = c.constmul, constadd = c.constadd, constrmax = c.constrmax, constrmin = c.constrmin)
 			if ('_DEACC' in c.fstnomvar.upper()):
@@ -340,3 +341,6 @@ def r2ctimeseriesfromfst(
 		# Release the grid and close file.
 
 		rmn.fstcloseall(fstfid)
+
+	# Return counter.
+	return I_COUNTER
