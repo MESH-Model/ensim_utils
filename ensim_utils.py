@@ -190,8 +190,8 @@ def r2cgridfromfst(fstmatchgrid, r2c):
 	elif (fstmatchgrid['grref'] == 'E'):
 		r2c.grid.Projection = 'ROTLATLONG'
 		r2c.grid.Ellipsoid = 'SPHERE'
-		r2c.grid.xOrigin = fstmatchgrid['lon0'] - fstmatchgrid['dlon']/2.0
-		r2c.grid.yOrigin = fstmatchgrid['lat0'] - fstmatchgrid['dlat']/2.0
+		r2c.grid.xOrigin = fstmatchgrid['rlon0'] - fstmatchgrid['dlon']/2.0
+		r2c.grid.yOrigin = fstmatchgrid['rlat0'] - fstmatchgrid['dlat']/2.0
 		r2c.grid.CentreLatitude = fstmatchgrid['xlat1']
 		r2c.grid.CentreLongitude = fstmatchgrid['xlon1']
 		r2c.grid.RotationLatitude = fstmatchgrid['xlat2']
