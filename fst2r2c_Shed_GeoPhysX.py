@@ -236,6 +236,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 			for x in range(r2c.grid.xCount):
 				Next.AttributeData[x, y] = i
 				i += 1
+		Next.AttributeData[r2c.grid.xCount - 1, r2c.grid.yCount - 1] = 0
 		r2c.attr.append(Next)
 		push_message('REMARK: Shed is not defined. A dummy Next will be appended to the file.')
 
