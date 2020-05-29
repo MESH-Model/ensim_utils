@@ -86,7 +86,7 @@ def r2cfromgemphyvf(fstmatchgrid, fstfid, r2c, PHYSVF_ip1):
 			a.AttributeName = 'mixed wood forest trees'
 		elif (ip1 == 1174):
 			a.AttributeName = 'mixed shrubs'
-		a.AttributeName = ('\"VF %d ' % ip1) + a.AttributeName + '\"'
+		a.AttributeName = ('VF %d ' % ip1) + a.AttributeName + ''
 		r2cattributefromfst(a, fstmatchgrid, fstfid, fstnomvar = 'VF', fstip1 = ip1)
 		r2c.attr.append(a)
 		SumClass += a.AttributeData
@@ -99,16 +99,16 @@ def r2cfromgemphysoil(fstmatchgrid, fstfid, r2c, PHYSSOIL_ip1):
 
 	# Fetch soil texture for soil layers.
 
-        i = 1
+	i = 1
 	for ip1 in PHYSSOIL_ip1:
-		a = r2cattribute(AttributeName = ('\"SAND %d\"' % i), AttributeUnits = '%')
+		a = r2cattribute(AttributeName = ('SAND %d' % i), AttributeUnits = '%')
 		r2cattributefromfst(a, fstmatchgrid, fstfid, fstnomvar = 'J1', fstip1 = ip1)
 		r2c.attr.append(a)
 		i += 1
 
 	i = 1
 	for ip1 in PHYSSOIL_ip1:
-		a = r2cattribute(AttributeName = ('\"CLAY %d\"' % i), AttributeUnits = '%')
+		a = r2cattribute(AttributeName = ('CLAY %d' % i), AttributeUnits = '%')
 		r2cattributefromfst(a, fstmatchgrid, fstfid = fstfid, fstnomvar = 'J2', fstip1 = ip1)
 		r2c.attr.append(a)
 		i += 1
@@ -293,7 +293,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 		# PHYSVF_MODE = 'frac'
 
 		elif (PHYSVF_MODE == 'frac'):
-			a = r2cattribute(AttributeName = '\"land cover\"', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
+			a = r2cattribute(AttributeName = 'land cover', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
 			r2c.attr.append(a)
 			r2c.meta.ClassCount += 1
 			push_message('REMARK: PHYSVF_MODE frac is active. GeoPhysX land cover will be appended to the parameter file.')
@@ -307,7 +307,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 
 		# Append dummy land cover attribute (when geophys.fst is not used).
 
-		a = r2cattribute(AttributeName = '\"land cover\"', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
+		a = r2cattribute(AttributeName = 'land cover', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
 		r2c.attr.append(a)
 		r2c.meta.ClassCount += 1
 		push_message('REMARK: GeoPhysX is not defined or PHYSVF_MODE gru is active. A dummy land cover will be appended to the parameter file.')
