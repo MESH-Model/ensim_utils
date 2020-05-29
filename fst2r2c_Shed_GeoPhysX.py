@@ -152,14 +152,12 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 
 		Rank = r2cattribute(AttributeName = 'Rank', AttributeType = 'integer')
 		r2cattributefromfst(Rank, fstmatchgrid, fstfid = fshed, fstnomvar = 'RANK')
-		Rank.AttributeData = Rank.AttributeData.astype(int)
 		r2c.attr.append(Rank)
 		if (not np.count_nonzero(np.unique(Rank.AttributeData)) == np.amax(Rank.AttributeData)):
 			push_message('WARNING: The succession of ranked cells is not continuous. This condition will not crash Watroute, but may result in lost water.')
 
 		Next = r2cattribute(AttributeName = 'Next', AttributeType = 'integer')
 		r2cattributefromfst(Next, fstmatchgrid, fstfid = fshed, fstnomvar = 'NEXT')
-		Next.AttributeData = Next.AttributeData.astype(int)
 		r2c.attr.append(Next)
 		if (not np.any(Next.AttributeData[Rank.AttributeData > 0] == 0)):
 			push_message('WARNING: No outlets exist in the basin. Outlets are cells with Rank where Next is zero. This condition is undesirable, but will not crash Watroute.')
@@ -190,7 +188,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 		if (not np.any(a.AttributeData[Next.AttributeData > 0] > 0.0)):
 			push_message('WARNING: Cells exist in the basin where channel length is zero. This condition may cause undesirable results in Watroute.')
 
-		IAK = r2cattribute(AttributeName = 'IAK', AttributeType = 'integer', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount), dtype=int))
+		IAK = r2cattribute(AttributeName = 'IAK', AttributeType = 'integer', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount), dtype = int))
 		r2c.attr.append(IAK)
 
 		a = r2cattribute(AttributeName = 'Chnl', AttributeType = 'integer')
@@ -217,19 +215,55 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 		r2cattributefromfst(a, fstmatchgrid, fstfid = fshed, fstnomvar = 'VEGH')
 		r2c.attr.append(a)
 
-		# Update meta-information.
+	else:
 
-		r2c.meta.NominalGridSize_AL = np.sqrt(np.average(GridArea.AttributeData, weights = (GridArea.AttributeData > 0)))
-		r2c.meta.ContourInterval = 1.0
-		r2c.meta.ImperviousArea = 0
-		r2c.meta.NumRiverClasses = np.count_nonzero(np.unique(IAK.AttributeData))
-		if (not Elev.AttributeUnits is None) and ((Elev.AttributeUnits.lower() == 'ft') or (Elev.AttributeUnits.lower() == 'feet')):
-			r2c.meta.ElevConversion = 0.305
-		else:
-			r2c.meta.ElevConversion = 1.0
-		r2c.meta.TotalNumOfGrids = np.count_nonzero(Rank.AttributeData)
-		r2c.meta.NumGridsInBasin = np.count_nonzero(Next.AttributeData)
-		r2c.meta.DebugGridNo = np.amax(Rank.AttributeData[Next.AttributeData > 0])
+		# Append dummy fields (when shed.fst is not used).
+
+		Rank = r2cattribute(AttributeName = 'Rank', AttributeType = 'integer')
+		Rank.AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount), dtype = int)
+		i = 1
+		for y in range(r2c.grid.yCount):
+			for x in range(r2c.grid.xCount):
+				Rank.AttributeData[x, y] = i
+				i += 1
+		r2c.attr.append(Rank)
+		push_message('REMARK: Shed is not defined. A dummy Rank will be appended to the file.')
+
+		Next = r2cattribute(AttributeName = 'Next', AttributeType = 'integer')
+		Next.AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount), dtype = int)
+		i = 2
+		for y in range(r2c.grid.yCount):
+			for x in range(r2c.grid.xCount):
+				Next.AttributeData[x, y] = i
+				i += 1
+		r2c.attr.append(Next)
+		push_message('REMARK: Shed is not defined. A dummy Next will be appended to the file.')
+
+		Elev = r2cattribute(AttributeName = 'Elev', AttributeUnits = 'm', AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount)))
+		r2c.attr.append(Elev)
+		push_message('REMARK: Shed is not defined. A dummy Elev will be appended to the file.')
+
+		IAK = r2cattribute(AttributeName = 'IAK', AttributeType = 'integer', AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount), dtype = int))
+		r2c.attr.append(IAK)
+		push_message('REMARK: Shed is not defined. A dummy IAK will be appended to the file.')
+
+		GridArea = r2cattribute(AttributeName = 'GridArea', AttributeUnits = 'm**2', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
+		r2c.attr.append(GridArea)
+		push_message('REMARK: Shed is not defined. A dummy GridArea field will be appended to the file.')
+
+	# Update meta-information.
+
+	r2c.meta.NominalGridSize_AL = np.sqrt(np.average(GridArea.AttributeData, weights = (GridArea.AttributeData > 0)))
+	r2c.meta.ContourInterval = 1.0
+	r2c.meta.ImperviousArea = 0
+	r2c.meta.NumRiverClasses = np.count_nonzero(np.unique(IAK.AttributeData))
+	if (not Elev.AttributeUnits is None) and ((Elev.AttributeUnits.lower() == 'ft') or (Elev.AttributeUnits.lower() == 'feet')):
+		r2c.meta.ElevConversion = 0.305
+	else:
+		r2c.meta.ElevConversion = 1.0
+	r2c.meta.TotalNumOfGrids = np.count_nonzero(Rank.AttributeData)
+	r2c.meta.NumGridsInBasin = np.count_nonzero(Next.AttributeData)
+	r2c.meta.DebugGridNo = np.amax(Rank.AttributeData[Next.AttributeData > 0])
 
 	# If grid type is 'E', write latitude and longitude fields.
 
@@ -243,7 +277,7 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 		a = r2cattribute(AttributeName = 'Longitude', AttributeUnits = 'degrees', AttributeData = lalo['lon'])
 		r2c.attr.append(a)
 
-	# Append land cover attributes.
+	# Append land cover attributes from geophys.fst.
 
 	if (not fphys is None):
 
@@ -269,11 +303,20 @@ def r2ccreateshed(fstmatchgrid, fpathr2cout, fshed = None, fphys = None, PHYSVF_
 		else:
 			push_message('WARNING: GeoPhysX file is active but no land covers exist or PHYSVF_MODE is not known or ip1 levels have not been defined. This may cause undesirable results when running the model.')
 
-		# Append dummy land cover class for impervious areas (legacy requirement).
+	else:
 
-		a = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount)))
+		# Append dummy land cover attribute (when geophys.fst is not used).
+
+		a = r2cattribute(AttributeName = '\"land cover\"', AttributeUnits = 'fraction', AttributeData = np.ones((r2c.grid.xCount, r2c.grid.yCount)))
 		r2c.attr.append(a)
 		r2c.meta.ClassCount += 1
+		push_message('REMARK: GeoPhysX is not defined or PHYSVF_MODE gru is active. A dummy land cover will be appended to the parameter file.')
+
+	# Append dummy land cover class for impervious areas (legacy requirement).
+
+	a = r2cattribute(AttributeName = 'impervious', AttributeUnits = 'fraction', AttributeData = np.zeros((r2c.grid.xCount, r2c.grid.yCount)))
+	r2c.attr.append(a)
+	r2c.meta.ClassCount += 1
 
 	# Write output.
 
@@ -409,6 +452,37 @@ def r2cfromfst_Shed_GeoPhysX(
 	if ((FSTSHED_INFILE == '') or (not path.exists(FSTSHED_INFILE))) and ((FSTPHYS_INFILE == '') or (not path.exists(FSTPHYS_INFILE))):
 		push_error('ERROR: Neither shed nor physics input file is defined. The script cannot continue.')
 
+	# Summarize inputs.
+
+	push_message('INFO: Processing files with the following conditions...')
+	if (not FSTSHED_INFILE == ''):
+		push_message('  FSTSHED_INFILE = ' + FSTSHED_INFILE)
+	else:
+		push_message('  FSTSHED_INFILE = (not active)')
+	if (not FSTPHYS_INFILE == ''):
+		push_message('  FSTPHYS_INFILE = ' + FSTPHYS_INFILE)
+	else:
+		push_message('  FSTPHYS_INFILE = (not active)')
+	if (not R2CSHD_OUTFILE == ''):
+		push_message('  R2CSHD_OUTFILE = ' + R2CSHD_OUTFILE)
+	else:
+		push_message('  R2CSHD_OUTFILE = (not active)')
+	if (not R2CPRM_OUTFILE == ''):
+		push_message('  R2CPRM_OUTFILE = ' + R2CPRM_OUTFILE)
+	else:
+		push_message('  R2CPRM_OUTFILE = (not active)')
+	if (not PHYSVF_MODE == ''):
+		push_message('  PHYSVF_MODE = ' + PHYSVF_MODE)
+	else:
+		push_message('  PHYSVF_MODE = (not active)')
+	if (PHYSVF_ip1):
+		push_message('  PHYSVF_ip1 = [ ' + ', '.join([str(i) for i in PHYSVF_ip1]) + ' ]')
+	else:
+		push_message('  PHYSVF_ip1 = (not active)')
+	if (PHYSSOIL_ip1):
+		push_message('  PHYSSOIL_ip1 = [ ' + ', '.join([str(i) for i in PHYSSOIL_ip1]) + ' ]')
+	else:
+		push_message('  PHYSSOIL_ip1 = (not active)')
 
 	# Open fst files.
 
@@ -438,12 +512,16 @@ def r2cfromfst_Shed_GeoPhysX(
 
 	fstmatchgrid = None
 	if (not fshed is None) and (fphys is None):
+		push_message('INFO: Matching domain to ' + FSTSHED_INFILE + ' specification.')
 		fstmatchgrid = fshedgrid
 	elif (fshed is None) and (not fphys is None):
+		push_message('INFO: Matching domain to ' + FSTPHYS_INFILE + ' specification.')
 		fstmatchgrid = fphysgrid
 	elif (fshedgrid['dlat'] <= fphysgrid['dlat']) or (fshedgrid['dlon'] <= fphysgrid['dlon']):
+		push_message('INFO: Matching domain to ' + FSTSHED_INFILE + ' specification.')
 		fstmatchgrid = fshedgrid
 	else:
+		push_message('INFO: Matching domain to ' + FSTPHYS_INFILE + ' specification.')
 		fstmatchgrid = fphysgrid
 	if (fstmatchgrid is None):
 		push_error('No grid is defined. The script cannot continue.')
@@ -470,3 +548,4 @@ def r2cfromfst_Shed_GeoPhysX(
 	print('Recapping all messages ...')
 	for m in messages:
 		print(m)
+	print('Processing has completed.')

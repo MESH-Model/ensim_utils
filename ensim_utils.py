@@ -154,7 +154,10 @@ def r2cfileappendattributes(r2c, fpathr2cout):
 				print('Saving ... ' + a.AttributeName)
 			else:
 				print('Saving ... Attribute ' + str(i + 1))
-			np.savetxt(r2cfid, np.transpose(a.AttributeData), fmt = '%g')
+			if (a.AttributeType == 'integer'):
+				np.savetxt(r2cfid, np.transpose(a.AttributeData), fmt = '%d')
+			else:
+				np.savetxt(r2cfid, np.transpose(a.AttributeData), fmt = '%g')
 
 def r2cfileappendmultiframe(r2c, fpathr2cout, frameno, frametime):
 
