@@ -434,8 +434,9 @@ def fstgridfromr2c(r2c):
 
 		# 'ROTLATLONG' projection to 'E' type (ZE).
 		# Offset the points by half-delta to convert from the 'r2c' matrix to the actual data points.
-		lon0 = r2c.grid.xOrigin + r2c.grid.xDelta/2.0
-		lat0 = r2c.grid.yOrigin + r2c.grid.yDelta/2.0
+		rlon0 = r2c.grid.xOrigin + r2c.grid.xDelta/2.0
+		rlat0 = r2c.grid.yOrigin + r2c.grid.yDelta/2.0
+		(lat0, lon0) = rmn.egrid_rll2ll(xlat1 = r2c.grid.CentreLatitude, xlon1 = r2c.grid.CentreLongitude, xlat2 = r2c.grid.RotationLatitude, xlon2 = r2c.grid.RotationLongitude, rlat = rlat0, rlon = rlon0)
 		return rmn.defGrid_ZE(ni = r2c.grid.xCount, nj = r2c.grid.yCount, lat0 = lat0, lon0 = lon0, dlat = r2c.grid.yDelta, dlon = r2c.grid.xDelta, xlat1 = r2c.grid.CentreLatitude, xlon1 = r2c.grid.CentreLongitude, xlat2 = r2c.grid.RotationLatitude, xlon2 = r2c.grid.RotationLongitude)
 	else:
 
@@ -575,7 +576,6 @@ def r2cattributefromfst(
 			fstvargrid = rmn.readGrid(fstfid, fstvar)
 			rmn.ezdefset(fstmatchgrid, fstvargrid)
 			field = rmn.ezsint(fstmatchgrid, fstvargrid, fstvar['d'])
-			rmn.gdrls(fstvargrid)
 
 	# Check status.
 	if (istat != 0):
