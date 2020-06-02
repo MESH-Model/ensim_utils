@@ -24,24 +24,24 @@ PATH_RARC_MISSING = '/fs/site2/dev/eccc/cmd/n/dap000/sa_mesh_forcing/rarc'
 
 def utctimetofstfname_rdrs(utctime):
 
-        # 00:00->23:00
+	# 00:00->23:00
 
-        filetime = utctime
-        filefcst = 12
-        fstsrcpath = PATH_ARMNMSH + ('/%04d%02d%02d%02d_forcing' % (filetime.year, filetime.month, filetime.day, filefcst))
+	filetime = utctime
+	filefcst = 12
+	fstsrcpath = PATH_ARMNMSH + ('/%04d%02d%02d%02d_forcing' % (filetime.year, filetime.month, filetime.day, filefcst))
 
-        # Return file path and adjust ip2.
-        # 01:00->24:00
+	# Return file path and adjust ip2.
+	# 01:00->24:00
 
-        return { 'path': fstsrcpath, 'ip2': (filetime.hour + 1) }
+	return { 'path': fstsrcpath, 'ip2': (filetime.hour + 1) }
 
 def utctimetofstfname_rdps(utctime, ip2 = None):
 
-        # 00:00->05:00 ; 12-hour forecast of yesterday.
+	# 00:00->05:00 ; 12-hour forecast of yesterday.
 
-        if (utctime.hour < 6):
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	if (utctime.hour < 6):
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# 06:00->17:00 ; 00-hour forecast of today.
 
@@ -49,52 +49,52 @@ def utctimetofstfname_rdps(utctime, ip2 = None):
 		filetime = utctime
 		filefcst = 0
 
-        # 18:00->23:00 ; 12-hour forecast of today.
+	# 18:00->23:00 ; 12-hour forecast of today.
 
-        else:
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	else:
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# ip2 override.
 
 	if (not ip2 is None):
 		filetime = filetime.replace(hour = ip2)
 
-        # Special rules.
+	# Special rules.
 
-        if (utctime < dtparser.parse('Sep 30, 2011 00:00:00 +0000')):
-                fstsrcpath = PATH_ARMNMSH + ('/forcage/regeta_op_0618/%04d%02d%02d%02d' % (filetime.year, filetime.month, filetime.day, filefcst))
-        else:
-                fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/regeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
+	if (utctime < dtparser.parse('Sep 30, 2011 00:00:00 +0000')):
+		fstsrcpath = PATH_ARMNMSH + ('/forcage/regeta_op_0618/%04d%02d%02d%02d' % (filetime.year, filetime.month, filetime.day, filefcst))
+	else:
+		fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/regeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
 
-        # Check rarc backup if file does not exist.
+	# Check rarc backup if file does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                fstsrcpath = PATH_RARC_MISSING + ('/operation.forecasts.regeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
+	if (not path.exists(fstsrcpath)):
+		fstsrcpath = PATH_RARC_MISSING + ('/operation.forecasts.regeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
 
-        # Stop if the path does not exist.
+	# Stop if the path does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
-                exit()
+	if (not path.exists(fstsrcpath)):
+		print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
+		exit()
 
-        # Return file path and adjust ip2.
+	# Return file path and adjust ip2.
 
-        return { 'path': fstsrcpath, 'ip2': filetime.hour }
+	return { 'path': fstsrcpath, 'ip2': filetime.hour }
 
 def utctimetofstfname_gem(utctime, ip2 = None):
 
-        # RDPS.
+	# RDPS.
 
-        return utctimetofstfname_rdps(utctime, ip2)
+	return utctimetofstfname_rdps(utctime, ip2)
 
 def utctimetofstfname_gdps(utctime, ip2 = None):
 
-        # 00:00->05:00 ; 12-hour forecast of yesterday.
+	# 00:00->05:00 ; 12-hour forecast of yesterday.
 
-        if (utctime.hour < 6):
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	if (utctime.hour < 6):
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# 06:00->17:00 ; 00-hour forecast of today.
 
@@ -102,44 +102,44 @@ def utctimetofstfname_gdps(utctime, ip2 = None):
 		filetime = utctime
 		filefcst = 0
 
-        # 18:00->23:00 ; 12-hour forecast of today.
+	# 18:00->23:00 ; 12-hour forecast of today.
 
-        else:
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	else:
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# ip2 override.
 
 	if (not ip2 is None):
 		filetime = filetime.replace(hour = ip2)
 
-        # Special rules.
+	# Special rules.
 
-        fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/glbeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
+	fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/glbeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
 
-        # Check rarc backup if file does not exist.
+	# Check rarc backup if file does not exist.
 
-        if (not path.exists(fstsrcpath)):
+	if (not path.exists(fstsrcpath)):
 		print('WARNING: Path does not exist, switching to local archive from: %s' % fstsrcpath)
-                fstsrcpath = PATH_RARC_MISSING + ('/operation.forecasts.glbeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
+		fstsrcpath = PATH_RARC_MISSING + ('/operation.forecasts.glbeta/%04d%02d%02d%02d_%03d' % (filetime.year, filetime.month, filetime.day, filefcst, filetime.hour))
 
-        # Stop if the path does not exist.
+	# Stop if the path does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
-                exit()
+	if (not path.exists(fstsrcpath)):
+		print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
+		exit()
 
-        # Return file path and adjust ip2.
+	# Return file path and adjust ip2.
 
-        return { 'path': fstsrcpath, 'ip2': filetime.hour }
+	return { 'path': fstsrcpath, 'ip2': filetime.hour }
 
 def utctimetofstfname_hrdps(utctime, ip2 = None):
 
-        # 00:00->05:00 ; 12-hour forecast of yesterday.
+	# 00:00->05:00 ; 12-hour forecast of yesterday.
 
-        if (utctime.hour < 6):
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	if (utctime.hour < 6):
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# 06:00->17:00 ; 00-hour forecast of today.
 
@@ -147,11 +147,11 @@ def utctimetofstfname_hrdps(utctime, ip2 = None):
 		filetime = utctime
 		filefcst = 0
 
-        # 18:00->23:00 ; 12-hour forecast of today.
+	# 18:00->23:00 ; 12-hour forecast of today.
 
-        else:
-                filetime = utctime + dt.relativedelta(hours = -12)
-                filefcst = 12
+	else:
+		filetime = utctime + dt.relativedelta(hours = -12)
+		filefcst = 12
 
 	# ip2 override.
 
@@ -167,73 +167,73 @@ def utctimetofstfname_hrdps(utctime, ip2 = None):
 	if (utctime < dtparser.parse('Dec 15, 2015 18:00:00 +0000')):
 		fstfname = fstfname + '_2.5km'
 
-        # Default path.
+	# Default path.
 
-        fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/lam.nat.eta/' % (filetime.year, filetime.month, filetime.day)) + fstfname
+	fstsrcpath = PATH_ARMNMSH + ('/arcsfc/%04d/%02d/%02d/lam.nat.eta/' % (filetime.year, filetime.month, filetime.day)) + fstfname
 
-        # Check rarc backup if file does not exist.
+	# Check rarc backup if file does not exist.
 
-        if (not path.exists(fstsrcpath)):
+	if (not path.exists(fstsrcpath)):
 		print('WARNING: Path does not exist, switching to local archive from: %s' % fstsrcpath)
-                fstsrcpath = PATH_RARC_MISSING + '/operation.forecasts.lam.nat.eta/' + fstfname
+		fstsrcpath = PATH_RARC_MISSING + '/operation.forecasts.lam.nat.eta/' + fstfname
 
-        # Stop if the path does not exist.
+	# Stop if the path does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
-                exit()
+	if (not path.exists(fstsrcpath)):
+		print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
+		exit()
 
-        # Return file path and adjust ip2.
+	# Return file path and adjust ip2.
 
-        return { 'path': fstsrcpath, 'ip2': filetime.hour }
+	return { 'path': fstsrcpath, 'ip2': filetime.hour }
 
 def utctimetofstfname_capa(utctime):
 
-        # 00:00 -> 06:00 ; 06-h.
+	# 00:00 -> 06:00 ; 06-h.
 
-        if (utctime.hour < 6):
-                filetime = utctime + dt.relativedelta(hour = 6)
-                filefcst = 6
+	if (utctime.hour < 6):
+		filetime = utctime + dt.relativedelta(hour = 6)
+		filefcst = 6
 
-        # 06:00 -> 12:00 ; 12-h.
+	# 06:00 -> 12:00 ; 12-h.
 
-        elif (utctime.hour < 12):
-                filetime = utctime + dt.relativedelta(hour = 12)
-                filefcst = 12
+	elif (utctime.hour < 12):
+		filetime = utctime + dt.relativedelta(hour = 12)
+		filefcst = 12
 
-        # 12:00 -> 18:00 ; 18-h.
+	# 12:00 -> 18:00 ; 18-h.
 
-        elif (utctime.hour < 18):
-                filetime = utctime + dt.relativedelta(hour = 18)
-                filefcst = 18
+	elif (utctime.hour < 18):
+		filetime = utctime + dt.relativedelta(hour = 18)
+		filefcst = 18
 
-        # 18:00 -> 00:00 + 1 day ; 00-h + 1-day.
+	# 18:00 -> 00:00 + 1 day ; 00-h + 1-day.
 
-        else:
-                filetime = utctime + dt.relativedelta(days = +1, hour = 0)
-                filefcst = 0
+	else:
+		filetime = utctime + dt.relativedelta(days = +1, hour = 0)
+		filefcst = 0
 
-        # Special rules.
+	# Special rules.
 
-        if (utctime < dtparser.parse('Jun 30, 2012 00:00:00 +0000')):
-                fstsrcpath = PATH_ARMNMSH + '/capa/v2.4b8-reanalyse/6h/final/' + ('%04d/' % filetime.year) + ('%02d/' % filetime.month) + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
-        else:
-                fstsrcpath = PATH_ARMNMSH + '/capa/v2.3/analyse/6h/final/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
+	if (utctime < dtparser.parse('Jun 30, 2012 00:00:00 +0000')):
+		fstsrcpath = PATH_ARMNMSH + '/capa/v2.4b8-reanalyse/6h/final/' + ('%04d/' % filetime.year) + ('%02d/' % filetime.month) + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
+	else:
+		fstsrcpath = PATH_ARMNMSH + '/capa/v2.3/analyse/6h/final/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
 
-        # Check rarc backup if file does not exist.
+	# Check rarc backup if file does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                fstsrcpath = PATH_RARC_MISSING + '/operation.analyses.regcapa.6h.final/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
+	if (not path.exists(fstsrcpath)):
+		fstsrcpath = PATH_RARC_MISSING + '/operation.analyses.regcapa.6h.final/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
 
-        # Stop if the path does not exist.
+	# Stop if the path does not exist.
 
-        if (not path.exists(fstsrcpath)):
-                print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
-                exit()
+	if (not path.exists(fstsrcpath)):
+		print('ERROR: Path does not exist. Script cannot continue. ' + fstsrcpath)
+		exit()
 
-        # Return file path and adjust ip2.
+	# Return file path and adjust ip2.
 
-        return { 'path' : fstsrcpath, 'ip2' : filetime.hour }
+	return { 'path' : fstsrcpath, 'ip2' : filetime.hour }
 
 def r2ctimeseriesfromfst(
 	R2CSHED_INFILE = 'MESH_drainage_database.r2c',
@@ -312,16 +312,16 @@ def r2ctimeseriesfromfst(
 
 	while FST_CURRENT_TIME < FST_STOP_BEFORE_TIME:
 
-                # Open file.
+		# Open file.
 
-                fstsrc = utctimetofstfname_gem(FST_CURRENT_TIME)
-                fstfid = rmn.fstopenall(fstsrc['path'])
+		fstsrc = utctimetofstfname_gem(FST_CURRENT_TIME)
+		fstfid = rmn.fstopenall(fstsrc['path'])
 
-                # Records.
+		# Records.
 		# Add DST offset to print only standard time to file (to avoid irregular time-stamps).
 
 		FRIENDLY_TIME = FST_CURRENT_TIME.replace(tzinfo = None) + UTC_STD_OFFSET
-        	print('%s %s %s %03d' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path'], 'ip2', fstsrc['ip2']))
+		print('%s %s %s %03d' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path'], 'ip2', fstsrc['ip2']))
 		for i, c in enumerate(PROCESS_FSTCONVFLD):
 			r2cattributefromfst(c.r2c.attr[0], fstmatchgrid, fstfid, fstnomvar = c.fstnomvar.upper().replace('_DEACC', ''), fstetiket = c.fstetiket, fstip1 = c.fstip1, fstip2 = fstsrc['ip2'], intpopt = c.intpopt, constmul = c.constmul, constadd = c.constadd, constrmax = c.constrmax, constrmin = c.constrmin)
 			if ('_DEACC' in c.fstnomvar.upper()):
@@ -333,9 +333,9 @@ def r2ctimeseriesfromfst(
 				c.r2c.attr[0].AttributeData = p1 - c.r2c.attr[0].AttributeData
 			r2cfileappendmultiframe(c.r2c, c.fpathr2cout, I_COUNTER, FRIENDLY_TIME)
 
-	        # Increment time and frame counter.
+		# Increment time and frame counter.
 
-        	FST_CURRENT_TIME += dt.relativedelta(minutes = FST_RECORD_MINUTES)
+		FST_CURRENT_TIME += dt.relativedelta(minutes = FST_RECORD_MINUTES)
 		I_COUNTER += 1
 
 		# Release the grid and close file.
