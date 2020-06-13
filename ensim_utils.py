@@ -4,6 +4,7 @@
 from os import path
 from time import gmtime, strftime, mktime
 from datetime import datetime
+import shlex
 import numpy as np
 
 # Import rpnpy if the library exists.
@@ -42,7 +43,7 @@ class r2cmeta(object):
 		self.NumGridsInBasin = 0
 		self.DebugGridNo = 0
 
-# Generic structure for file projection.
+# Generic structure for EnSim/GreenKenue projection.
 class r2cgrid(object):
 	def __init__(self):
 
@@ -77,6 +78,32 @@ class r2cfile(object):
 		self.meta = None
 		self.grid = r2cgrid()
 		self.attr = []
+
+# Meta information listed in tb0 format files.
+class tb0meta(object):
+	def __init__(self):
+		self.StartTime = None
+		self.DeltaT = 0.0
+		self.RoutingDeltaT = 0.0
+		self.FillFlag = ''
+
+# Generic structure for column data.
+class tb0column(object):
+	def __init__(self, ColumnName = None, ColumnType = None, ColumnUnits = None, ColumnLocationX = None, ColumnLocationY = None):
+		self.ColumnName = ColumnName
+		self.ColumnType = ColumnType
+		self.ColumnUnits = ColumnUnits
+		self.ColumnLocationX = ColumnLocationX
+		self.ColumnLocationY = ColumnLocationY
+		self.ColumnData = None
+
+# Generic structure for 'tb0' file format.
+class tb0file(object):
+	def __init__(self):
+		self.meta = None
+		self.proj = r2cgrid()
+		self.cols = []
+		self.RecordCount = 0
 
 # Generic structure for conversion field ('fst' to 'r2c').
 # This structure is only used with standard file (fst) format.
@@ -254,6 +281,109 @@ def r2cfileappendmultiframe(r2c, fpathr2cout, frameno, frametime):
 		np.savetxt(r2cfid, np.transpose(r2c.attr[0].AttributeData), fmt = '%g')
 		r2cfid.write(':EndFrame\n')
 
+# Open and print the header to file using information provided via 'tb0'.
+# Overwrites any existing file with the same file information.
+# Supports 'LATLONG' projection only.
+def tb0filecreateheader(tb0, fpathtb0out):
+
+	# Write the header.
+	# Writing the header overwrites any existing file.
+	with open(fpathtb0out, 'w') as tb0fid:
+
+		# Write the file type.
+		tb0fid.write('########################################\n')
+		tb0fid.write(':FileType tb0 ASCII EnSim 1.0\n')
+		tb0fid.write('#\n')
+		tb0fid.write('# DataType EnSim Table\n')
+		tb0fid.write('#\n')
+		tb0fid.write(':Application ensim_utils.py\n')
+		tb0fid.write(':Version 1.0\n')
+		tb0fid.write(':WrittenBy ensim_utils.py\n')
+		tb0fid.write(':CreationDate ' + strftime('%Y/%m/%d %H:%M:%S', gmtime()) + '\n')
+		tb0fid.write('#\n')
+		tb0fid.write('#---------------------------------------\n')
+		tb0fid.write('#\n')
+
+		# Write meta information is provided in the 'tb0' object.
+		# Standard date format for EnSim/Green Kenue formats: "yyyy/MM/dd HH:mm:ss.SSS".
+		if (not tb0.meta is None):
+			tb0fid.write('#\n')
+			tb0fid.write(':StartTime ' + strftime('%Y/%m/%d %H:%M:%S', tb0.meta.StartTime.timetuple()) + '\n')
+			tb0fid.write(':DeltaT ' + str(tb0.meta.DeltaT) + '\n')
+			tb0fid.write(':RoutingDeltaT ' + str(tb0.meta.RoutingDeltaT) + '\n')
+			tb0fid.write('#\n')
+			tb0fid.write(':FillFlag ' + tb0.meta.FillFlag + '\n')
+		tb0fid.write('#\n')
+
+		# Write the projection.
+		if (tb0.proj.Projection == 'LATLONG'):
+
+			# 'LATLONG'.
+			tb0fid.write(':Projection ' + tb0.proj.Projection + '\n')
+			tb0fid.write(':Ellipsoid ' + tb0.proj.Ellipsoid + '\n')
+		tb0fid.write('#\n')
+
+		# Write meta information of the columns.
+		# A generic ID is created in the absence of 'ColumnName'.
+		# Optional specifications, such as 'ColumnType' and 'ColumnUnits', print the EnSim/Green Kenue default if empty.
+		# Multiple columns are written as a row.
+		tb0fid.write(':ColumnMetaData\n')
+		line = ':ColumnName'
+		for i, a in enumerate(tb0.cols):
+			if (not a.ColumnName is None):
+				if (' ' in a.ColumnName):
+					line += ' \"' + a.ColumnName + '\"'
+				else:
+					line += ' ' + a.ColumnName
+			else:
+				line += ' ' + str(i + 1)
+		tb0fid.write(line + '\n')
+		line = ':ColumnType'
+		for i, a in enumerate(tb0.cols):
+			if (not a.ColumnType is None):
+				line += ' ' + a.ColumnType
+			else:
+				line += ' float'
+		tb0fid.write(line + '\n')
+		line = ':ColumnUnits'
+		for i, a in enumerate(tb0.cols):
+			if (not a.ColumnUnits is None):
+				if (' ' in a.ColumnUnits):
+					line += ' \"' + a.ColumnUnits + '\"'
+				else:
+					line += ' ' + a.ColumnUnits
+			else:
+				line += ' none'
+		tb0fid.write(line + '\n')
+		line = ':ColumnLocationX'
+		for i, a in enumerate(tb0.cols):
+			line += ' ' + str(a.ColumnLocationX)
+		tb0fid.write(line + '\n')
+		line = ':ColumnLocationY'
+		for i, a in enumerate(tb0.cols):
+			line += ' ' + str(a.ColumnLocationY)
+		tb0fid.write(line + '\n')
+		tb0fid.write(':EndColumnMetaData\n')
+		tb0fid.write('#\n')
+
+		# End of header.
+		tb0fid.write(':EndHeader\n')
+
+# Append data to a 'tb0' format file (time-series).
+# Appends records to an existing file.
+# 'r2cfilecreateheader' should be called in advance of this routine to properly create the file.
+# File operation re-opens and appends to the file to reduce memory usage.
+def tb0fileappendcolumndata(tb0, fpathtb0out):
+
+	# Will append the data to an existing file.
+	# Determine formatting by the type of variable (%g).
+	with open(fpathtb0out, 'a') as tb0fid:
+		for n in range(tb0.RecordCount):
+			line = ''
+			for i, a in enumerate(tb0.cols):
+				line += ' ' + str(a.ColumnData[n])
+			tb0fid.write(line + '\n')
+
 # Derive the 'r2c'/EnSim compatible grid specification from an existing standard format (fst) file.
 # Supports 'LATLONG' and 'ROTLATLONG' projections.
 # Derives the projection from the passed 'fstmatchgrid' object.
@@ -369,6 +499,34 @@ def r2cgridfromr2c(r2c, fpathr2cin):
 				# Exit if at the end of the header.
 				return
 
+# Derive the EnSim/Green Kenue projection from an existing 'tb0' format file.
+# Supports 'LATLONG' projection only.
+def tb0projectionfromtb0(tb0, fpathtb0in):
+
+	# Set tb0 attributes to match the projection defined in fpathtb0in.
+	with open(fpathtb0in, 'r') as f:
+		for l in f:
+
+			# Continue if not an attribute identified with leading ':'.
+			if (l.find(':') != 0):
+				continue
+
+			# Identify and save attributes related to projection and grid specification.
+			m = l.strip().lower().split()
+			if (m[0] == ':projection'):
+				tb0.proj.Projection = m[1].upper()
+			elif (m[0] == ':ellipsoid'):
+				tb0.proj.Ellipsoid = m[1].upper()
+			elif (m[0] == ':endheader'):
+
+				# Exit if at the end of the header.
+				return
+
+	# Stop with an error if the projection is unsupported.
+	if (tb0.proj.Projection != 'LATLONG'):
+		print('ERROR: The projection ' + tb0.proj.Projection + ' is not supported. The script cannot continue.')
+		exit()
+
 # Derive drainage database meta information from an existing 'r2c' format file.
 # Reads the information from file.
 def r2cmetafromr2c(r2c, fpathr2cin):
@@ -443,6 +601,40 @@ def fstgridfromr2c(r2c):
 		# Unknown projection.
 		print('ERROR: The fst grid type ' + r2c.grid.Projection + ' is not supported. The script cannot continue.')
 		exit()
+
+# Read meta information from an existing 'tb0' format file.
+def tb0metafromtb0(tb0, fpathtb0in):
+
+	# Set tb0 attributes based on the attributes in fpathtb0in.
+	# Reads the information from file.
+	tb0.meta = tb0meta()
+	with open(fpathtb0in, 'r') as f:
+		for l in f:
+
+			# Continue if not an attribute identified with leading ':'.
+			if (l.find(':') != 0):
+				continue
+
+			# Identify and save attributes related to meta information.
+			m = l.strip().lower().split()
+			if(m[0] == ':starttime'):
+				tb0.meta.StartTime = datetime.strptime(' '.join(m[1:]).strip('"'), '%Y/%m/%d %H:%M:%S')
+			elif(m[0] == ':deltat'):
+				if (not m[1].find(':') == 0):
+					tb0.meta.DeltaT = int(m[1])
+				else:
+					tb0.meta.DeltaT = datetime.strptime(m[1], '%H:%M:%S')
+			elif(m[0] == ':routingdeltat'):
+				if (not m[1].find(':') == 0):
+					tb0.meta.RoutingDeltaT = int(m[1])
+				else:
+					tb0.meta.RoutingDeltaT = datetime.strptime(m[1], '%H:%M:%S')
+			elif(m[0] == ':fillflag'):
+				tb0.meta.FillFlag = m[1]
+			elif (m[0] == ':endheader'):
+
+				# Exit if at the end of the header.
+				return
 
 # Return a vector of point data read from standard file (fst) format.
 # Check for special 'UU', 'VV', 'UV', or 'WD' attributes to for special wind-component interpolation.
@@ -686,3 +878,120 @@ def r2cattributesfromr2c(r2c, fpathr2cin):
 			# Enumerate over the expected number of attributes.
 			for i, a in enumerate(r2c.attr):
 				a.AttributeData = np.fromfile(f, count = r2c.grid.yCount*r2c.grid.xCount, sep = ' ').reshape(r2c.grid.yCount, r2c.grid.xCount).transpose()
+
+# Populate columns from an existing 'tb0' format file.
+# Reads the columns and data from file.
+def tb0columnsfromtb0(tb0, fpathtb0in):
+
+	# Column count.
+	a = 0
+
+	# Set tb0 attributes from the columns defined in fpathtb0in.
+	with open(fpathtb0in, 'r') as f:
+
+		# First, scan the number of columns in the file.
+		n = 0
+		while True:
+
+			# Read line and break if no more lines exist in the file.
+			l = f.readline()
+			if not l:
+				break
+
+			# Continue if not an attribute identified with leading ':'.
+			if (l.find(':') != 0):
+				continue
+
+			# Read the number of columns from applicable attributes.
+			# Print a warning if the number of columns is not consistent.
+			m = shlex.split(l.strip())
+			if (m[0].lower() == ':columnname' or m[0].lower() == 'columntype' or m[0].lower() == 'columnunits' or m[0].lower() == 'columnlocationx' or m[0].lower() == 'columnlocationy'):
+				if (n == 0):
+
+					# Update the number of columns to the number of columns in this attribute.
+					n = len(m) - 1
+				else:
+					if (not (len(m) - 1) == n):
+
+						# Print a warning if the number of columns in this attribute does not match the number of columns derived from other attributes.
+						print('WARNING: The number of columns (%d) in the %s attribute is different from the number of columns (%d) derived from other attributes.' % (len(m) - 1), m[0], n)
+					if ((len(m) - 1) < n):
+
+						# Print a warning if the number of columns in this attribute is less than the number of columns derived from other attributes.
+						# Adjust the number of columns to be the lesser number.
+						print('WARNING: The number of columns (%d) derived from other attributes is adjusted to the lesser number of columns (%d) in the %s attribute.' % n, (len(m) - 1), m[0])
+						n = len(m) - 1
+			elif (m[0].lower() == ':endheader'):
+
+				# Break if at the end of the header.
+				break
+
+		# Stop with an error if no columns were found in the file.
+		if (n == 0):
+			print('ERROR: No columns were found in the file.')
+			quit()
+		else:
+			tb0.cols = []
+			for i in range(n):
+				tb0.cols.append(tb0column())
+				tb0.cols[i].ColumnData = []
+
+		# Read the column meta information from the header.
+		f.seek(0, 0)
+		while True:
+
+			# Read line and break if no more lines exist in the file.
+			l = f.readline()
+			if not l:
+				break
+
+			# Continue if not an attribute identified with leading ':'.
+			if (l.find(':') != 0):
+				continue
+
+			# Assign the column meta information.
+			# Columns were already added to the list from the scan.
+			m = shlex.split(l.strip())
+			if (m[0].lower() == ':columnname'):
+				for i in range(n):
+					tb0.cols[i].ColumnName = m[i + 1]
+			elif (m[0].lower() == ':columntype'):
+				for i in range(n):
+					tb0.cols[i].ColumnType = m[i + 1]
+			elif (m[0].lower() == ':columnunits'):
+				for i in range(n):
+					tb0.cols[i].ColumnUnits = m[i + 1]
+			elif (m[0].lower() == ':columnlocationx'):
+				for i in range(n):
+					tb0.cols[i].ColumnLocationX = float(m[i + 1])
+			elif (m[0].lower() == ':columnlocationy'):
+				for i in range(n):
+					tb0.cols[i].ColumnLocationY = float(m[i + 1])
+			elif (m[0].lower() == ':endheader'):
+
+				# Break if at the end of the header.
+				break
+
+		# Read column data from the file.
+		while True:
+
+			# Read line and break if no more lines exist in the file.
+			p = f.tell()
+			l = f.readline()
+			if not l:
+				break
+
+			# Skip if a comment line with leading '#'.
+			if (l.find('#') == 0):
+				continue
+			f.seek(p)
+
+			# Read line and break if no more lines exist in the file.
+			v = np.fromfile(f, count = n, sep = ' ')
+			if (np.size(v) < n):
+				break
+
+			# Assign data to the appropriate column.
+			for i in range(n):
+				tb0.cols[i].ColumnData.append(v[i])
+			tb0.RecordCount += 1
