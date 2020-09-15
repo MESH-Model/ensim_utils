@@ -6,6 +6,7 @@ from time import gmtime, strftime, mktime
 from datetime import datetime
 import shlex
 import numpy as np
+import pandas as pd
 
 # Import rpnpy if the library exists.
 # To load rpnpy (ECCC environment):
@@ -844,8 +845,10 @@ def r2cattributesfromr2c(r2c, fpathr2cin):
 		l = f.readline()
 		if (len(l) >= 6 and l.lower()[:6] == ':frame'):
 			is_framed = True
-			print('ERROR: Multi-frame read is not supported by this routine: %s' % 'r2cattributesfromr2c')
-			exit()
+
+			# Change the structure of 'AttributeData'.
+			r2c.attr[0].AttributeData = pd.DataFrame(columns = ['Datetime', 'Values'])
+			r2c.attr[0].AttributeData.set_index('Datetime', inplace = True)
 		else:
 			is_framed = False
 		f.seek(p)
@@ -866,11 +869,16 @@ def r2cattributesfromr2c(r2c, fpathr2cin):
 				frame_mark = datetime.strptime(l.strip().lower().split('"')[1].split('.')[0], '%Y/%m/%d %H:%M:%S')
 
 				# Read the data and increment the frame count.
-				r2c.attr[0].AttributeData = np.fromfile(f, count = r2c.grid.yCount*r2c.grid.xCount, sep = ' ').reshape(r2c.grid.yCount, r2c.grid.xCount).transpose()
-				r2c.attr[0].FrameCount += 1
+				frame_data = np.fromfile(f, count = r2c.grid.yCount*r2c.grid.xCount, sep = ' ').reshape(r2c.grid.yCount, r2c.grid.xCount).transpose()
 
 				# Read the ':EndFrame' marker.
 				f.readline()
+
+				# Append the record to the data frame.
+				r2c.attr[0].AttributeData.loc[frame_mark] = [frame_data]
+
+				# Increment the frame count.
+				r2c.attr[0].FrameCount += 1
 		else:
 
 			# Single-frame file.
