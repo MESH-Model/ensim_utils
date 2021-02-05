@@ -250,12 +250,17 @@ def r2cfileappendattributes(r2c, fpathr2cout):
 	# Will append to existing file.
 	with open(fpathr2cout, 'a') as r2cfid:
 		for i, a in enumerate(r2c.attr):
+
+			# Print diagnostic information to screen.
 			if (not a.AttributeName is None):
 				print('Saving ... ' + a.AttributeName)
 			else:
 				print('Saving ... Attribute ' + str(i + 1))
+
+			# Determine formatting by the type of variable (%g).
 			for r in np.transpose(a.AttributeData):
-				r2cfid.write(' '.join(r.astype(str)) + '\n')
+				r.tofile(r2cfid, sep = ' ', format = '%g')
+				r2cfid.write('\n')
 
 # Append multi-frame attributes to an 'r2c' format file (time-series).
 # Appends records to an existing file.
@@ -270,9 +275,16 @@ def r2cfileappendmultiframe(r2c, fpathr2cout, frameno, frametime):
 	r2c.attr[0].FrameCount += 1
 	frameno = r2c.attr[0].FrameCount
 	with open(fpathr2cout, 'a') as r2cfid:
+
+		# Print the leading frame header (date in standard format for EnSim/GK).
 		r2cfid.write(':Frame %d %d \"%s\"\n' % (frameno, frameno, strftime('%Y/%m/%d %H:%M:%S', frametime.timetuple())))
+
+		# Determine formatting by the type of variable (%g).
 		for r in np.transpose(r2c.attr[0].AttributeData):
-			r2cfid.write(' '.join(r.astype(str)) + '\n')
+			r.tofile(r2cfid, sep = ' ', format = '%g')
+			r2cfid.write('\n')
+
+		# Print footer.
 		r2cfid.write(':EndFrame\n')
 
 # Open and print the header to file using information provided via 'tb0'.
