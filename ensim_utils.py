@@ -254,14 +254,8 @@ def r2cfileappendattributes(r2c, fpathr2cout):
 				print('Saving ... ' + a.AttributeName)
 			else:
 				print('Saving ... Attribute ' + str(i + 1))
-			if (a.AttributeType == 'integer'):
-
-				# Force formatting for 'integer' types.
-				np.savetxt(r2cfid, np.transpose(a.AttributeData), fmt = '%d')
-			else:
-
-				# Determine formatting by the type of variable (%g).
-				np.savetxt(r2cfid, np.transpose(a.AttributeData), fmt = '%g')
+			for r in np.transpose(a.AttributeData):
+				r2cfid.write(' '.join(r.astype(str)) + '\n')
 
 # Append multi-frame attributes to an 'r2c' format file (time-series).
 # Appends records to an existing file.
@@ -277,9 +271,8 @@ def r2cfileappendmultiframe(r2c, fpathr2cout, frameno, frametime):
 	frameno = r2c.attr[0].FrameCount
 	with open(fpathr2cout, 'a') as r2cfid:
 		r2cfid.write(':Frame %d %d \"%s\"\n' % (frameno, frameno, strftime('%Y/%m/%d %H:%M:%S', frametime.timetuple())))
-
-		# Determine formatting by the type of variable (%g).
-		np.savetxt(r2cfid, np.transpose(r2c.attr[0].AttributeData), fmt = '%g')
+		for r in np.transpose(r2c.attr[0].AttributeData):
+			r2cfid.write(' '.join(r.astype(str)) + '\n')
 		r2cfid.write(':EndFrame\n')
 
 # Open and print the header to file using information provided via 'tb0'.
