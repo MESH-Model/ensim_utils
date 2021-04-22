@@ -109,36 +109,36 @@ class tb0file(object):
 # Generic structure for conversion field ('fst' to 'r2c').
 # This structure is only used with standard file (fst) format.
 class r2cconversionfieldfromfst(object):
-		def __init__(self, fpathr2cout, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
-			self.r2c = r2cfile()
-			self.r2c.attr.append(r2cattribute(AttributeName = AttributeName, AttributeType = AttributeType, AttributeUnits = AttributeUnits))
-			self.fpathr2cout = fpathr2cout
-			self.fstnomvar = fstnomvar
-			self.fstetiket = fstetiket
-			self.fstip1 = fstip1
-			self.intpopt = intpopt
-			self.constmul = constmul
-			self.constadd = constadd
-			self.constrmax = constrmax
-			self.constrmin = constrmin
+	def __init__(self, fpathr2cout, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
+		self.r2c = r2cfile()
+		self.r2c.attr.append(r2cattribute(AttributeName = AttributeName, AttributeType = AttributeType, AttributeUnits = AttributeUnits))
+		self.fpathr2cout = fpathr2cout
+		self.fstnomvar = fstnomvar
+		self.fstetiket = fstetiket
+		self.fstip1 = fstip1
+		self.intpopt = intpopt
+		self.constmul = constmul
+		self.constadd = constadd
+		self.constrmax = constrmax
+		self.constrmin = constrmin
 
 # Generic structure for conversion field ('fst' to CSV list or 'tb0').
 # This structure is only used with standard file (fst) format.
 class conversionfieldfromfst(object):
-        def __init__(self, fname, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
-			self.fid = None
-			self.fname = fname
-			self.AttributeName = AttributeName
-			self.AttributeType = AttributeType
-			self.AttributeUnits = AttributeUnits
-			self.fstnomvar = fstnomvar
-			self.fstetiket = fstetiket
-			self.fstip1 = fstip1
-			self.intpopt = intpopt
-			self.constmul = constmul
-			self.constadd = constadd
-			self.constrmax = constrmax
-			self.constrmin = constrmin
+	def __init__(self, fname, fstnomvar, AttributeName, AttributeType = None, AttributeUnits = None, fstetiket = ' ', fstip1 = -1, intpopt = rmn.EZ_INTERP_NEAREST, constmul = 1.0, constadd = 0.0, constrmax = float('inf'), constrmin = float('-inf')):
+		self.fid = None
+		self.fname = fname
+		self.AttributeName = AttributeName
+		self.AttributeType = AttributeType
+		self.AttributeUnits = AttributeUnits
+		self.fstnomvar = fstnomvar
+		self.fstetiket = fstetiket
+		self.fstip1 = fstip1
+		self.intpopt = intpopt
+		self.constmul = constmul
+		self.constadd = constadd
+		self.constrmax = constrmax
+		self.constrmin = constrmin
 
 # Routines.
 # File manipulation routines.
