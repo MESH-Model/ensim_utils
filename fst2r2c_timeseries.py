@@ -217,8 +217,10 @@ def utctimetofstfname_capa(utctime):
 
 	if (utctime < dtparser.parse('Jun 30, 2012 00:00:00 +0000')):
 		fstsrcpath = PATH_ARMNMSH + '/capa/v2.4b8-reanalyse/6h/final/' + ('%04d/' % filetime.year) + ('%02d/' % filetime.month) + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
-	else:
+	elif (utctime < dtparser.parse('Dec 1, 2021 00:00:00 +0000')):
 		fstsrcpath = PATH_ARMNMSH + '/capa/v2.3/analyse/6h/final/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
+	else:
+		fstsrcpath = PATH_ARMNMSH + '/capa/rdpa/final/analyse/6h/' + ('%04d' % filetime.year) + ('%02d' % filetime.month) + ('%02d' % filetime.day) + ('%02d_000' % filefcst)
 
 	# Check rarc backup if file does not exist.
 
@@ -310,37 +312,82 @@ def r2ctimeseriesfromfst(
 
 	# Iterate time loop.
 
+	fstopenpath = None
+	fstfid = None
+	p0openpath = None
+	p0fid = None
 	while FST_CURRENT_TIME < FST_STOP_BEFORE_TIME:
 
 		# Open file.
 
-		fstsrc = utctimetofstfname_gem(FST_CURRENT_TIME)
-		fstfid = rmn.fstopenall(fstsrc['path'])
+#		fstsrc = utctimetofstfname_rdps(FST_CURRENT_TIME)
+#		fstsrc = utctimetofstfname_gem(FST_CURRENT_TIME)
+#		fstsrc = utctimetofstfname_capa(FST_CURRENT_TIME)
+#		fstfid = rmn.fstopenall(fstsrc['path'])
 
 		# Records.
 		# Add DST offset to print only standard time to file (to avoid irregular time-stamps).
 
 		FRIENDLY_TIME = FST_CURRENT_TIME.replace(tzinfo = None) + UTC_STD_OFFSET
-		print('%s %s %s %03d' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path'], 'ip2', fstsrc['ip2']))
+#		print('%s %s %s %03d' % (strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()), fstsrc['path'], 'ip2', fstsrc['ip2']))
+		print('INFO: Processing for datetime \'%s\'' % strftime('%Y/%m/%d %H:%M:%S', FRIENDLY_TIME.timetuple()))
 		for i, c in enumerate(PROCESS_FSTCONVFLD):
+			if (c.fpathsystem in ['rdps', 'gem']):
+				fstsrc = utctimetofstfname_rdps(FST_CURRENT_TIME)
+			elif (c.fpathsystem in ['gdps']):
+				fstsrc = utctimetofstfname_gdps(FST_CURRENT_TIME)
+			elif (c.fpathsystem in ['hrdps']):
+				fstsrc = utctimetofstfname_hrdps(FST_CURRENT_TIME)
+			elif (c.fpathsystem in ['rdpa', 'capa']):
+				fstsrc = utctimetofstfname_capa(FST_CURRENT_TIME)
+			elif (c.fpathsystem == 'rdrs'):
+				fstsrc = utctimetofstfname_rdps(FST_CURRENT_TIME)
+			else:
+				print('ERROR: Unknown system path \'%s\'.' % c.fpathsystem)
+				exit()
+			if (fstsrc['path'] != fstopenpath):
+				if (fstfid is not None):
+					rmn.fstcloseall(fstfid)
+				fstopenpath = fstsrc['path']
+				fstfid = rmn.fstopenall(fstsrc['path'])
+#			print('INFO: Processing \'%s\' for \'%s\' from %s with ip2 = %03d' % (c.fstnomvar, c.r2c.attr[0].AttributeName, fstsrc['path'], fstsrc['ip2']))
 			r2cattributefromfst(c.r2c.attr[0], fstmatchgrid, fstfid, fstnomvar = c.fstnomvar.upper().replace('_DEACC', ''), fstetiket = c.fstetiket, fstip1 = c.fstip1, fstip2 = fstsrc['ip2'], intpopt = c.intpopt, constmul = c.constmul, constadd = c.constadd, constrmax = c.constrmax, constrmin = c.constrmin)
 			if ('_DEACC' in c.fstnomvar.upper()):
-				p0src = utctimetofstfname_gem(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
-				p0fid = rmn.fstopenall(p0src['path'])
+#				p0src = utctimetofstfname_gem(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				if (c.fpathsystem in ['rdps', 'gem']):
+					p0src = utctimetofstfname_rdps(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				elif (c.fpathsystem in ['gdps']):
+					p0src = utctimetofstfname_gdps(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				elif (c.fpathsystem in ['hrdps']):
+					p0src = utctimetofstfname_hrdps(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				elif (c.fpathsystem in ['rdpa', 'capa']):
+					p0src = utctimetofstfname_capa(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				elif (c.fpathsystem == 'rdrs'):
+					p0src = utctimetofstfname_rdps(FST_CURRENT_TIME, fstsrc['ip2'] - int(FST_RECORD_MINUTES/60))
+				if (p0src['path'] != p0openpath):
+					if (p0fid is not None):
+						rmn.fstcloseall(p0fid)
+					p0openpath = p0src['path']
+					p0fid = rmn.fstopenall(p0src['path'])
 				p1 = c.r2c.attr[0].AttributeData
 				r2cattributefromfst(c.r2c.attr[0], fstmatchgrid, p0fid, fstnomvar = c.fstnomvar.upper().replace('_DEACC', ''), fstetiket = c.fstetiket, fstip1 = c.fstip1, fstip2 = p0src['ip2'], intpopt = c.intpopt, constmul = c.constmul, constadd = c.constadd, constrmax = c.constrmax, constrmin = c.constrmin)
-				rmn.fstcloseall(p0fid)
+#				rmn.fstcloseall(p0fid)
 				c.r2c.attr[0].AttributeData = p1 - c.r2c.attr[0].AttributeData
 			r2cfileappendmultiframe(c.r2c, c.fpathr2cout, I_COUNTER, FRIENDLY_TIME)
+#			rmn.fstcloseall(fstfid)
 
 		# Increment time and frame counter.
 
 		FST_CURRENT_TIME += dt.relativedelta(minutes = FST_RECORD_MINUTES)
 		I_COUNTER += 1
 
-		# Release the grid and close file.
+	# Close file.
 
+	if (fstfid is not None):
 		rmn.fstcloseall(fstfid)
+		if (p0fid is not None):
+			rmn.fstcloseall(p0fid)
+	print('INFO: Processing has completed at frame %d.' % (I_COUNTER - 1))
 
 	# Return counter.
 	return I_COUNTER
